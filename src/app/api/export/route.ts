@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Submission from '@/models/Submission';
 import '@/models/Team';
-import '@/models/Hackathon';
+import Hackathon from '@/models/Hackathon';
+import User from '@/models/User';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +63,36 @@ export async function GET(req: NextRequest) {
         const filter: Record<string, unknown> = {};
         if (hackathonId && hackathonId !== 'ALL') {
             filter.hackathon = hackathonId;
+        }
+
+        // Privacy Guard: Non-admin users cannot export final rankings unless published
+        if (finalRanking) {
+            let isAdmin = false;
+            try {
+                const session = await getServerSession(authOptions);
+                if (session?.user?.email) {
+                    const user = await User.findOne({ email: session.user.email }).lean() as { role?: string } | null;
+                    if (user?.role === 'ADMIN' || session.user.email === 'admin@hackathon.com') {
+                        isAdmin = true;
+                    }
+                }
+            } catch {
+                isAdmin = false;
+            }
+
+            if (!isAdmin) {
+                if (!hackathonId || hackathonId === 'ALL') {
+                    return NextResponse.json({
+                        error: 'Forbidden: Only organizers can export unpublished or global final rankings.'
+                    }, { status: 403 });
+                }
+                const hackathon = await Hackathon.findById(hackathonId).lean() as { isFinalResultsPublished?: boolean } | null;
+                if (!hackathon?.isFinalResultsPublished) {
+                    return NextResponse.json({
+                        error: 'Forbidden: Final rankings have not been published by the organizer.'
+                    }, { status: 403 });
+                }
+            }
         }
 
         let query = Submission.find(filter)

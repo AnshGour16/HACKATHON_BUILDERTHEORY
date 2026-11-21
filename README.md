@@ -96,9 +96,25 @@ In every hackathon with 50+ or 100+ participating teams across multiple themes, 
 - Ingests repository metadata, `README.md`, dependencies (`package.json`), and commit histories via the GitHub REST API.
 - Evaluates technical complexity (`0–100`), architecture quality, and authentic development activity.
 
-### 7. 📊 Interactive Visual Scorecards & PDF Export
-- Recharts-powered **Radar Charts** map skill distributions across Innovation, Feasibility, and Completeness.
-- Instant client-side **PDF Scorecard Generation** (`jsPDF`) giving teams a branded summary of their score, strengths, and areas for improvement.
+### 8. ⚖️ 5-Stage Deterministic Tie-Breaking & Final Scoring Algorithm
+- **Weighted Composite Score:** Organizer-configurable weights (e.g. 40% Pitch Deck + 60% GitHub Codebase) combined deterministically.
+- **5-Stage Total Ordering:**
+  1. **Final Composite Score (descending):** Primary ranking criterion.
+  2. **GitHub Technical Score (descending):** Breaks composite ties if within floating-point tolerance (0.0001).
+  3. **Pitch Deck Score (descending):** Breaks technical ties using Round 1 presentation evaluation.
+  4. **Submission CreatedAt Timestamp (ascending):** Breaks score ties using submission submission time (first-come advantage).
+  5. **Team ID Lexicographical Comparison (ascending):** Compares unique 24-character hexadecimal MongoDB ObjectIds (`String(a.teamId).localeCompare(String(b.teamId))`).
+- **Mathematical Total Ordering Guarantee (Zero Arbitrary Ordering):** Because every MongoDB document has an immutable, globally unique `_id`, no two teams can ever match on all 5 criteria. Rankings are 100% deterministic, reproducible, and never randomized across executions.
+
+### 9. 🔒 Published Results Invalidation & Publication Safeguards
+- **Automatic Publication Invalidation:** If pitch/GitHub scores, evaluation statuses, or ranking weights change post-publication, the system immediately revokes publication (`isFinalResultsPublished = false`), clears winner flags, and logs the invalidation event.
+- **Recalculation Requirement:** Organizers must execute a fresh calculation before republishing invalidated results.
+- **Publish Safeguards:**
+  - Blocks publishing if any shortlisted team has a pending or failed evaluation (`PENDING_CODE`, `FAILED_CODE`, or unsubmitted deck).
+  - Blocks publishing if rankings have not been calculated with currently configured weights (`lastCalculatedPitchWeight` !== `pitchWeight`).
+  - Blocks publishing if `winnerCount` exceeds eligible ranked teams.
+  - Blocks publishing if no valid saved ranking exists.
+- **Participant Privacy Guard:** Participant-facing endpoints (`/api/user-submission`, `/api/submissions`, `/api/submissions/[id]`, `/api/export`) enforce strict server-side masking of `finalScore`, `finalScoreBreakdown`, `finalRank`, `isWinner`, and `winnerPosition` until the organizer explicitly publishes results.
 
 ---
 

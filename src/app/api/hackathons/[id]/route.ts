@@ -4,6 +4,7 @@ import Hackathon from '@/models/Hackathon';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import mongoose from 'mongoose';
+import { invalidateHackathonPublication } from '@/lib/publication-service';
 
 export async function GET(
     request: NextRequest,
@@ -71,6 +72,25 @@ export async function PUT(
         if (typeof body.blindJudgingEnabled === 'boolean') hackathon.blindJudgingEnabled = body.blindJudgingEnabled;
         if (typeof body.isActive === 'boolean') hackathon.isActive = body.isActive;
         if (Array.isArray(body.tracks)) hackathon.tracks = body.tracks;
+
+        // Weight updates: If weights change on a published hackathon, immediately invalidate publication
+        if (typeof body.pitchWeight === 'number' || typeof body.githubWeight === 'number') {
+            const newPitch = typeof body.pitchWeight === 'number' ? body.pitchWeight : hackathon.pitchWeight;
+            const newGithub = typeof body.githubWeight === 'number' ? body.githubWeight : hackathon.githubWeight;
+            const weightsChanged = newPitch !== hackathon.pitchWeight || newGithub !== hackathon.githubWeight;
+
+            if (weightsChanged) {
+                hackathon.pitchWeight = newPitch;
+                hackathon.githubWeight = newGithub;
+                if (hackathon.isFinalResultsPublished) {
+                    await invalidateHackathonPublication(
+                        hackathon._id,
+                        `Ranking weights changed to ${newPitch}% pitch / ${newGithub}% GitHub via hackathon settings`,
+                        session?.user?.email || 'ADMIN'
+                    );
+                }
+            }
+        }
 
         await hackathon.save();
 

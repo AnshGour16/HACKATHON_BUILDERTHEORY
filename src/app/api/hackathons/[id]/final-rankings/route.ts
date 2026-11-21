@@ -7,6 +7,7 @@ import Submission from '@/models/Submission';
 import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { invalidateHackathonPublication } from '@/lib/publication-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,17 +33,31 @@ interface IHackathonDocLean {
     name: string;
     pitchWeight?: number;
     githubWeight?: number;
+    lastCalculatedPitchWeight?: number;
+    lastCalculatedGithubWeight?: number;
     isFinalResultsPublished?: boolean;
     finalResultsPublishedAt?: Date;
     finalResultsPublishedBy?: string;
+    finalResultsInvalidatedAt?: Date;
+    finalResultsInvalidationReason?: string;
     winnerCount?: number;
     finalRankingRecalculatedAt?: Date;
     rankingHistory?: Array<{
+        version: number;
         calculatedAt: Date;
         pitchWeight: number;
         githubWeight: number;
         rankedTeamCount: number;
-        topTeamId?: mongoose.Types.ObjectId;
+        incompleteTeamCount?: number;
+        topTeamName?: string;
+        topTeamScore?: number;
+    }>;
+    publicationHistory?: Array<{
+        action: string;
+        timestamp: Date;
+        performedBy: string;
+        winnerCount?: number;
+        reason?: string;
     }>;
     [key: string]: unknown;
 }
@@ -92,12 +107,36 @@ interface ISubmissionDocLean {
 }
 
 /**
- * Deterministic tie-breaker for final ranking:
- * 1. Final Composite Score (desc)
- * 2. GitHub Technical Score (desc)
- * 3. Pitch Deck Score (desc)
- * 4. Submission CreatedAt (asc)
- * 5. Team ID (asc)
+ * 5-STAGE DETERMINISTIC TIE-BREAKING ALGORITHM FOR FINAL COMPOSITE RANKINGS:
+ * 
+ * When two or more teams achieve similar standing, ranks are decided strictly in the
+ * following deterministic order:
+ * 
+ * 1. Final Composite Score (descending)
+ *    The primary ranking criterion: (Pitch Score * Pitch Weight) + (GitHub Score * GitHub Weight).
+ *    Score differences > 0.0001 break ties immediately.
+ * 
+ * 2. GitHub Technical Score (descending)
+ *    If final composite scores are tied within floating-point tolerance (0.0001), the team with
+ *    the higher Round 2 GitHub technical evaluation score is ranked higher.
+ * 
+ * 3. Pitch Deck Score (descending)
+ *    If GitHub technical scores are also identical, the team with the higher Round 1 pitch deck
+ *    evaluation score is ranked higher.
+ * 
+ * 4. Submission CreatedAt Timestamp (ascending)
+ *    If both round scores are identical, the team with the earlier submission timestamp
+ *    (first-come advantage) is ranked higher.
+ * 
+ * 5. Team ID Lexicographical Comparison (ascending)
+ *    If all four criteria above are equal, the unique 24-character hexadecimal MongoDB ObjectId
+ *    string (String(a.teamId).localeCompare(String(b.teamId))) is compared lexicographically.
+ * 
+ * TOTAL ORDERING GUARANTEE (Zero Arbitrary/Random Ordering):
+ * In MongoDB, every team document possesses an immutable, globally unique ObjectId (_id).
+ * Therefore, for two distinct teams A and B, String(a.teamId) === String(b.teamId) can never occur.
+ * This mathematically ensures a strict, non-random total ordering over all candidates, eliminating
+ * non-deterministic sorting or arbitrary reordering across multiple runs.
  */
 function sortRankingsDeterministically(a: ICalculatedRankedTeam, b: ICalculatedRankedTeam): number {
     const scoreDiff = b.finalScore - a.finalScore;
@@ -195,12 +234,17 @@ export async function GET(
                 name: hackathon.name,
                 pitchWeight: hackathon.pitchWeight ?? 40,
                 githubWeight: hackathon.githubWeight ?? 60,
+                lastCalculatedPitchWeight: hackathon.lastCalculatedPitchWeight,
+                lastCalculatedGithubWeight: hackathon.lastCalculatedGithubWeight,
                 isFinalResultsPublished: Boolean(hackathon.isFinalResultsPublished),
                 finalResultsPublishedAt: hackathon.finalResultsPublishedAt || null,
                 finalResultsPublishedBy: hackathon.finalResultsPublishedBy || null,
+                finalResultsInvalidatedAt: hackathon.finalResultsInvalidatedAt || null,
+                finalResultsInvalidationReason: hackathon.finalResultsInvalidationReason || null,
                 winnerCount: hackathon.winnerCount ?? 3,
                 finalRankingRecalculatedAt: hackathon.finalRankingRecalculatedAt || null,
-                rankingHistory: hackathon.rankingHistory || []
+                rankingHistory: hackathon.rankingHistory || [],
+                publicationHistory: hackathon.publicationHistory || []
             },
             stats: {
                 totalShortlisted: shortlistedTeams.length,
@@ -271,18 +315,86 @@ export async function POST(
                 }, { status: 400 });
             }
 
-            const parsedWinnerCount = Math.max(1, Math.min(20, Number(winnerCount) || 3));
+            // Safeguard 1: Invalidation check
+            if (hackathon.finalResultsInvalidatedAt && (!hackathon.finalRankingRecalculatedAt || new Date(hackathon.finalRankingRecalculatedAt) <= new Date(hackathon.finalResultsInvalidatedAt))) {
+                return NextResponse.json({
+                    error: `Cannot publish: results were invalidated on ${new Date(hackathon.finalResultsInvalidatedAt).toISOString()} (${hackathon.finalResultsInvalidationReason || 'scores or weights modified'}). A fresh ranking calculation must be run before publishing.`
+                }, { status: 400 });
+            }
 
-            // Fetch ranked teams in descending rank order
+            // Safeguard 2: Weight consistency check
+            if (
+                hackathon.lastCalculatedPitchWeight === undefined ||
+                hackathon.lastCalculatedGithubWeight === undefined ||
+                hackathon.pitchWeight !== hackathon.lastCalculatedPitchWeight ||
+                hackathon.githubWeight !== hackathon.lastCalculatedGithubWeight
+            ) {
+                return NextResponse.json({
+                    error: `Cannot publish: rankings have not been calculated using the currently saved weights (${hackathon.pitchWeight}% pitch / ${hackathon.githubWeight}% GitHub). Current calculated weights: (${hackathon.lastCalculatedPitchWeight}% / ${hackathon.lastCalculatedGithubWeight}%). Please calculate rankings first.`
+                }, { status: 400 });
+            }
+
+            // Safeguard 3: Check all shortlisted teams for completed evaluations
+            const shortlistedTeams = await Team.find({ hackathon: id, isShortlisted: true }).lean() as unknown as ITeamDocLean[];
+            if (shortlistedTeams.length === 0) {
+                return NextResponse.json({
+                    error: 'Cannot publish: no shortlisted teams found.'
+                }, { status: 400 });
+            }
+
+            const teamIds = shortlistedTeams.map(t => t._id);
+            const submissions = await Submission.find({ hackathon: id, team: { $in: teamIds } }).lean() as unknown as ISubmissionDocLean[];
+            const subMap = new Map<string, ISubmissionDocLean>();
+            submissions.forEach(s => subMap.set(String(s.team), s));
+
+            const incompleteTeams: { teamId: string; teamName: string; reason: string }[] = [];
+            for (const team of shortlistedTeams) {
+                const sub = subMap.get(String(team._id));
+                const hasPitch = sub?.status === 'EVALUATED' && typeof sub.aiEvaluation?.totalScore === 'number';
+                const hasGithub = sub?.githubEvaluation?.status === 'EVALUATED' && typeof sub.githubEvaluation?.technicalScore === 'number';
+                const isGithubFailed = sub?.githubEvaluation?.status === 'FAILED';
+
+                if (!sub || !hasPitch) {
+                    incompleteTeams.push({ teamId: String(team._id), teamName: team.name, reason: 'Pitch deck evaluation pending or missing' });
+                } else if (isGithubFailed) {
+                    incompleteTeams.push({ teamId: String(team._id), teamName: team.name, reason: 'GitHub evaluation failed' });
+                } else if (!hasGithub) {
+                    incompleteTeams.push({ teamId: String(team._id), teamName: team.name, reason: 'GitHub evaluation pending' });
+                }
+            }
+
+            if (incompleteTeams.length > 0) {
+                return NextResponse.json({
+                    error: `Cannot publish: ${incompleteTeams.length} shortlisted team(s) have pending or failed evaluations. All shortlisted teams must have completed evaluations before final results can be published.`,
+                    incompleteTeams
+                }, { status: 400 });
+            }
+
+            // Safeguard 4: Valid saved rankings check
             const rankedTeams = await Team.find({
                 hackathon: id,
                 isShortlisted: true,
-                finalRank: { $exists: true }
+                finalRank: { $exists: true, $ne: null },
+                finalScore: { $exists: true, $ne: null }
             }).sort({ finalRank: 1 });
 
             if (rankedTeams.length === 0) {
                 return NextResponse.json({
-                    error: 'No ranked teams available to declare as winners. Ensure completed evaluations exist.'
+                    error: 'Cannot publish: no valid saved rankings found. Please calculate rankings first.'
+                }, { status: 400 });
+            }
+
+            // Safeguard 5: Winner count validation
+            const parsedWinnerCount = Number(winnerCount);
+            if (isNaN(parsedWinnerCount) || parsedWinnerCount < 1) {
+                return NextResponse.json({
+                    error: 'Winner count must be a positive integer of at least 1.'
+                }, { status: 400 });
+            }
+
+            if (parsedWinnerCount > rankedTeams.length) {
+                return NextResponse.json({
+                    error: `Cannot publish: winnerCount (${parsedWinnerCount}) exceeds the number of eligible ranked teams (${rankedTeams.length}).`
                 }, { status: 400 });
             }
 
@@ -292,7 +404,7 @@ export async function POST(
 
             // Assign winners
             const winningTeamIds: mongoose.Types.ObjectId[] = [];
-            for (let i = 0; i < Math.min(parsedWinnerCount, rankedTeams.length); i++) {
+            for (let i = 0; i < parsedWinnerCount; i++) {
                 const team = rankedTeams[i];
                 const position = i + 1;
                 team.isWinner = true;
@@ -306,17 +418,32 @@ export async function POST(
                 );
             }
 
+            const now = new Date();
             hackathon.isFinalResultsPublished = true;
-            hackathon.finalResultsPublishedAt = new Date();
+            hackathon.finalResultsPublishedAt = now;
             hackathon.finalResultsPublishedBy = session.user.email;
             hackathon.winnerCount = parsedWinnerCount;
+            hackathon.finalResultsInvalidatedAt = undefined;
+            hackathon.finalResultsInvalidationReason = undefined;
+
+            if (!hackathon.publicationHistory) {
+                hackathon.publicationHistory = [];
+            }
+            hackathon.publicationHistory.push({
+                action: 'PUBLISH',
+                timestamp: now,
+                performedBy: session.user.email,
+                winnerCount: parsedWinnerCount,
+                reason: body.reason || `Published Top ${parsedWinnerCount} winners with ${rankedTeams.length} ranked teams`
+            });
+
             await hackathon.save();
 
             return NextResponse.json({
                 success: true,
                 message: `Successfully declared and published Top ${parsedWinnerCount} winners!`,
                 winnerCount: parsedWinnerCount,
-                publishedAt: hackathon.finalResultsPublishedAt
+                publishedAt: now
             });
         }
 
@@ -324,12 +451,28 @@ export async function POST(
         // ACTION: UNPUBLISH
         // -------------------------------------------------------------
         if (action === 'unpublish') {
+            const now = new Date();
             hackathon.isFinalResultsPublished = false;
+
+            if (!hackathon.publicationHistory) {
+                hackathon.publicationHistory = [];
+            }
+            hackathon.publicationHistory.push({
+                action: 'UNPUBLISH',
+                timestamp: now,
+                performedBy: session.user.email,
+                reason: body.reason || 'Organizer unpublished final results'
+            });
+
             await hackathon.save();
+
+            // Clear winner flags so participants cannot see winner status while unpublished
+            await Team.updateMany({ hackathon: id }, { $set: { isWinner: false, winnerPosition: undefined } });
+            await Submission.updateMany({ hackathon: id }, { $set: { isWinner: false, winnerPosition: undefined } });
 
             return NextResponse.json({
                 success: true,
-                message: 'Final results have been unpublished. Participants can no longer see final ranks.'
+                message: 'Final results have been unpublished. Participants can no longer see final ranks or badges.'
             });
         }
 
@@ -432,6 +575,16 @@ export async function POST(
             });
         }
 
+        // If hackathon was published, calculating a fresh ranking immediately invalidates old publication
+        if (hackathon.isFinalResultsPublished) {
+            await invalidateHackathonPublication(
+                id,
+                `Rankings recalculated by organizer with weights ${pw}% pitch / ${gw}% GitHub`,
+                session.user.email
+            );
+            hackathon.isFinalResultsPublished = false;
+        }
+
         // Commit final ranking to MongoDB atomically
         const now = new Date();
         const completeTeamIds: mongoose.Types.ObjectId[] = [];
@@ -475,14 +628,23 @@ export async function POST(
         // Update Hackathon
         hackathon.pitchWeight = pw;
         hackathon.githubWeight = gw;
+        hackathon.lastCalculatedPitchWeight = pw;
+        hackathon.lastCalculatedGithubWeight = gw;
         hackathon.finalRankingRecalculatedAt = now;
 
         if (!hackathon.rankingHistory) hackathon.rankingHistory = [];
+        const nextVersion = hackathon.rankingHistory.length + 1;
         hackathon.rankingHistory.push({
+            version: nextVersion,
             calculatedAt: now,
+            calculatedBy: session.user.email,
             pitchWeight: pw,
             githubWeight: gw,
-            topTeamName: eligibleCandidates[0]?.teamName || 'N/A'
+            rankedTeamCount: eligibleCandidates.length,
+            incompleteTeamCount: incompleteTeams.length,
+            topTeamName: eligibleCandidates[0]?.teamName || 'N/A',
+            topTeamScore: eligibleCandidates[0]?.finalScore ?? 0,
+            reason: body.reason || 'Recalculated final rankings'
         });
 
         await hackathon.save();

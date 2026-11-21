@@ -12,6 +12,27 @@ export interface ITrack {
     rubrics: IRubric[];
 }
 
+export interface IRankingHistoryEntry {
+    version: number;
+    calculatedAt: Date;
+    calculatedBy?: string;
+    pitchWeight: number;
+    githubWeight: number;
+    rankedTeamCount: number;
+    incompleteTeamCount: number;
+    topTeamName?: string;
+    topTeamScore?: number;
+    reason?: string;
+}
+
+export interface IPublicationAuditEntry {
+    action: 'PUBLISH' | 'UNPUBLISH' | 'INVALIDATED' | 'INVALIDATED_SCORE_CHANGE' | 'INVALIDATED_WEIGHT_CHANGE';
+    timestamp: Date;
+    performedBy: string;
+    winnerCount?: number;
+    reason?: string;
+}
+
 export interface IHackathon extends Document {
     name: string;
     slug: string;
@@ -31,12 +52,17 @@ export interface IHackathon extends Document {
     shortlistCount?: number;
     pitchWeight?: number;
     githubWeight?: number;
+    lastCalculatedPitchWeight?: number;
+    lastCalculatedGithubWeight?: number;
     isFinalResultsPublished?: boolean;
     finalResultsPublishedAt?: Date;
     finalResultsPublishedBy?: string;
+    finalResultsInvalidatedAt?: Date;
+    finalResultsInvalidationReason?: string;
     winnerCount?: number;
     finalRankingRecalculatedAt?: Date;
-    rankingHistory?: { calculatedAt: Date; pitchWeight: number; githubWeight: number; topTeamName?: string }[];
+    rankingHistory?: IRankingHistoryEntry[];
+    publicationHistory?: IPublicationAuditEntry[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -71,16 +97,37 @@ const HackathonSchema: Schema = new Schema({
     shortlistCount: { type: Number, default: 0 },
     pitchWeight: { type: Number, default: 40 },
     githubWeight: { type: Number, default: 60 },
+    lastCalculatedPitchWeight: { type: Number },
+    lastCalculatedGithubWeight: { type: Number },
     isFinalResultsPublished: { type: Boolean, default: false },
     finalResultsPublishedAt: { type: Date },
     finalResultsPublishedBy: { type: String },
+    finalResultsInvalidatedAt: { type: Date },
+    finalResultsInvalidationReason: { type: String },
     winnerCount: { type: Number, default: 3 },
     finalRankingRecalculatedAt: { type: Date },
     rankingHistory: [{
+        version: { type: Number, required: true },
         calculatedAt: { type: Date, default: Date.now },
-        pitchWeight: { type: Number },
-        githubWeight: { type: Number },
-        topTeamName: { type: String }
+        calculatedBy: { type: String },
+        pitchWeight: { type: Number, required: true },
+        githubWeight: { type: Number, required: true },
+        rankedTeamCount: { type: Number, required: true },
+        incompleteTeamCount: { type: Number, default: 0 },
+        topTeamName: { type: String },
+        topTeamScore: { type: Number },
+        reason: { type: String }
+    }],
+    publicationHistory: [{
+        action: {
+            type: String,
+            enum: ['PUBLISH', 'UNPUBLISH', 'INVALIDATED', 'INVALIDATED_SCORE_CHANGE', 'INVALIDATED_WEIGHT_CHANGE'],
+            required: true
+        },
+        timestamp: { type: Date, default: Date.now },
+        performedBy: { type: String, required: true },
+        winnerCount: { type: Number },
+        reason: { type: String }
     }]
 }, { timestamps: true });
 

@@ -67,15 +67,18 @@ export async function GET() {
 
         const isPublished = Boolean(team.hackathon?.isFinalResultsPublished);
 
-        // Privacy Guard: If organizer has NOT published final results, mask final rank and winner status
+        // Privacy Guard: If organizer has NOT published final results, mask final rank, final score, breakdown and winner status
         if (!isPublished) {
             if (team) {
                 team.finalRank = undefined;
+                team.finalScore = undefined;
                 team.isWinner = false;
                 team.winnerPosition = undefined;
             }
             if (submission) {
                 submission.finalRank = undefined;
+                submission.finalScore = undefined;
+                submission.finalScoreBreakdown = undefined;
                 submission.isWinner = false;
                 submission.winnerPosition = undefined;
             }

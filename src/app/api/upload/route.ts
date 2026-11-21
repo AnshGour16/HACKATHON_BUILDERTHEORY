@@ -7,6 +7,7 @@ import { evaluatePresentationWithGemini } from '@/lib/gemini';
 import { ITrack } from '@/models/Hackathon';
 import Hackathon from '@/models/Hackathon';
 import { getOrCreateDefaultHackathon } from '@/lib/hackathon-service';
+import { invalidateHackathonPublication } from '@/lib/publication-service';
 import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -166,6 +167,15 @@ export async function POST(req: NextRequest) {
             submission.aiEvaluation = evaluation;
             submission.status = 'EVALUATED';
             await submission.save();
+
+            // Published Results Invalidation Guard: Invalidate final rankings if scores update post-publication
+            if (hackathon && hackathon._id) {
+                await invalidateHackathonPublication(
+                    hackathon._id,
+                    `Pitch deck score updated for team "${team.name}" (Score: ${evaluation.totalScore}/100)`,
+                    user.email
+                );
+            }
 
             return NextResponse.json({
                 success: true,

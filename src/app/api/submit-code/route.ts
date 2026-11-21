@@ -7,6 +7,7 @@ import User from '@/models/User';
 import { getOrCreateDefaultHackathon } from '@/lib/hackathon-service';
 import { fetchGithubData, validateAndNormalizeGithubUrl } from '@/lib/github';
 import { evaluateCodebaseWithGemini } from '@/lib/gemini';
+import { invalidateHackathonPublication } from '@/lib/publication-service';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -243,6 +244,15 @@ export async function POST(req: NextRequest) {
             team.githubStatus = 'FAILED';
             await team.save();
 
+            // Invalidate publication if results were published
+            if (hackathon && hackathon._id) {
+                await invalidateHackathonPublication(
+                    hackathon._id,
+                    `GitHub inspection failed for team "${team.name}"`,
+                    session?.user?.email || 'SYSTEM'
+                );
+            }
+
             const statusCode = fetchResult.isRateLimited ? 429 : 400;
             return NextResponse.json({
                 error: fetchResult.error || 'Failed to inspect GitHub repository.'
@@ -271,6 +281,15 @@ export async function POST(req: NextRequest) {
 
             team.githubStatus = 'FAILED';
             await team.save();
+
+            // Invalidate publication if results were published
+            if (hackathon && hackathon._id) {
+                await invalidateHackathonPublication(
+                    hackathon._id,
+                    `GitHub inspection failed for team "${team.name}"`,
+                    session?.user?.email || 'SYSTEM'
+                );
+            }
 
             return NextResponse.json({
                 error: 'AI codebase evaluation failed. Please retry in a few moments.'
@@ -322,6 +341,15 @@ export async function POST(req: NextRequest) {
         team.githubStatus = 'EVALUATED';
         team.githubScore = aiEvaluationResult.technicalScore;
         await team.save();
+
+        // Invalidate publication if results were published
+        if (hackathon && hackathon._id) {
+            await invalidateHackathonPublication(
+                hackathon._id,
+                `GitHub technical evaluation completed for team "${team.name}" (Score: ${aiEvaluationResult.technicalScore}/100)`,
+                session?.user?.email || 'SYSTEM'
+            );
+        }
 
         return NextResponse.json({
             success: true,
