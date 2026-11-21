@@ -103,7 +103,7 @@ export default function AdminDashboard() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTrack, setSelectedTrack] = useState('ALL');
     const [sortBy, setSortBy] = useState<'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST' | 'FINAL_RANK'>('FINAL_RANK');
-    const [shortlistStatusFilter, setShortlistStatusFilter] = useState<'ALL' | 'SHORTLISTED' | 'NOT_SHORTLISTED' | 'FINAL_RANKING'>('ALL');
+    const [shortlistStatusFilter, setShortlistStatusFilter] = useState<'ALL' | 'SHORTLISTED' | 'NOT_SHORTLISTED' | 'FINAL_RANKING'>('FINAL_RANKING');
 
     // Organizer Shortlisting Controls State
     const [showShortlistPanel, setShowShortlistPanel] = useState(true);
@@ -637,10 +637,10 @@ export default function AdminDashboard() {
                     <div>
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-2">
                             <Sparkles className="w-3.5 h-3.5" />
-                            Live Hackathon Control Center
+                            AI Repository Checker & Leaderboard
                         </div>
-                        <h1 className="text-3xl font-bold tracking-tight text-white">Hackathon Leaderboard</h1>
-                        <p className="text-neutral-400 text-sm mt-1">Real-time AI-screened submissions with ranked scores & actionable feedback.</p>
+                        <h1 className="text-3xl font-bold tracking-tight text-white">Repository Evaluation Leaderboard</h1>
+                        <p className="text-neutral-400 text-sm mt-1">Automated code quality audit, system architecture evaluation, and deterministic rankings.</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -1526,12 +1526,12 @@ export default function AdminDashboard() {
                                 <TableHeader className="bg-neutral-900/40">
                                     <TableRow className="border-neutral-800">
                                         <TableHead className="w-14 text-center">Rank</TableHead>
-                                        <TableHead>Team & Track</TableHead>
-                                        <TableHead className="hidden md:table-cell">Problem Statement</TableHead>
+                                        <TableHead>Team & GitHub Repository</TableHead>
+                                        <TableHead className="hidden md:table-cell">Project & Track</TableHead>
                                         <TableHead>Status & Podium</TableHead>
+                                        <TableHead className="text-center">Repository Score</TableHead>
                                         <TableHead className="text-center">Pitch (R1)</TableHead>
-                                        <TableHead className="text-center">Code (R2)</TableHead>
-                                        <TableHead className="text-right">Final Score</TableHead>
+                                        <TableHead className="text-right">Ranked Score</TableHead>
                                         <TableHead className="text-right">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -1544,6 +1544,7 @@ export default function AdminDashboard() {
                                         const finalScore = sub.finalScore ?? sub.team?.finalScore;
                                         const isWinner = Boolean(sub.isWinner || sub.team?.isWinner);
                                         const winnerPosition = sub.winnerPosition ?? sub.team?.winnerPosition ?? (isWinner ? finalRank : undefined);
+                                        const repoUrl = sub.githubEvaluation?.repoUrl || sub.team?.githubUrl;
 
                                         const rankDisplay = finalRank ? `#${finalRank}` : isShortlisted && sub.team?.shortlistRank ? `#${sub.team.shortlistRank}` : idx + 1;
 
@@ -1583,22 +1584,33 @@ export default function AdminDashboard() {
                                                             </Badge>
                                                         )}
                                                     </div>
-                                                    {sub.team?.projectTitle && (
-                                                        <p className="text-xs text-primary font-medium">{sub.team.projectTitle}</p>
+                                                    {repoUrl ? (
+                                                        <a
+                                                            href={repoUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs text-indigo-400 hover:underline inline-flex items-center gap-1 font-mono mt-0.5"
+                                                        >
+                                                            <Github className="w-3 h-3 text-neutral-400 shrink-0" />
+                                                            <span className="truncate max-w-[200px]">{repoUrl.replace(/^https?:\/\/github\.com\//, '')}</span>
+                                                            <ExternalLink className="w-2.5 h-2.5 text-neutral-500" />
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-[11px] text-neutral-500 italic block mt-0.5">No repo submitted</span>
                                                     )}
+                                                </TableCell>
+                                                <TableCell className="hidden md:table-cell">
+                                                    <p className="text-xs text-primary font-medium truncate max-w-xs">{sub.team?.projectTitle || 'Untitled Project'}</p>
                                                     <div className="flex items-center gap-2 mt-0.5">
-                                                        <span className="text-xs text-indigo-400">
+                                                        <span className="text-xs text-neutral-400">
                                                             {sub.team?.track || 'General'} Track
                                                         </span>
                                                         {sub.hackathon?.name && (
-                                                            <span className="text-[10px] text-neutral-400 bg-neutral-900 px-1.5 py-0.5 rounded border border-neutral-800">
+                                                            <span className="text-[10px] text-neutral-500 bg-neutral-900 px-1.5 py-0.5 rounded border border-neutral-800">
                                                                 {sub.hackathon.name}
                                                             </span>
                                                         )}
                                                     </div>
-                                                </TableCell>
-                                                <TableCell className="hidden md:table-cell text-xs text-neutral-400 max-w-xs truncate">
-                                                    {sub.team?.problemStatement || 'N/A'}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1 items-start">
@@ -1606,66 +1618,71 @@ export default function AdminDashboard() {
                                                             <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] px-2 py-0.5 whitespace-nowrap font-bold">
                                                                 {winnerPosition === 1 ? '🏆 1st Champion' : winnerPosition === 2 ? '🥈 2nd Place' : winnerPosition === 3 ? '🥉 3rd Place' : `🏅 Finalist #${finalRank}`}
                                                             </Badge>
-                                                        ) : isShortlisted ? (
+                                                        ) : sub.githubEvaluation?.status === 'EVALUATED' ? (
                                                             <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] px-2 py-0.5 whitespace-nowrap">
-                                                                Shortlisted {sub.team?.shortlistRank ? `(#${sub.team.shortlistRank})` : ''}
-                                                            </Badge>
-                                                        ) : sub.status === 'EVALUATED' ? (
-                                                            <Badge variant="outline" className="text-neutral-500 border-neutral-800 text-[10px] px-2 py-0.5 whitespace-nowrap">
                                                                 Evaluated
                                                             </Badge>
+                                                        ) : sub.githubEvaluation?.status === 'ANALYZING' ? (
+                                                            <Badge className="bg-indigo-900/40 text-indigo-300 border border-indigo-800 text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                                                <Loader2 className="w-2.5 h-2.5 animate-spin mr-1" /> Analyzing
+                                                            </Badge>
+                                                        ) : sub.githubEvaluation?.status === 'FAILED' ? (
+                                                            <Badge variant="destructive" className="text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                                                Evaluation Failed
+                                                            </Badge>
                                                         ) : (
-                                                            <Badge variant="secondary" className="text-amber-400 bg-amber-500/10 border-amber-500/20 text-[10px] px-2 py-0.5 whitespace-nowrap">
-                                                                {sub.status || 'Pending'}
+                                                            <Badge variant="outline" className="text-neutral-500 border-neutral-800 text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                                                Pending Review
                                                             </Badge>
                                                         )}
                                                         {finalRank && (
                                                             <span className="text-[9px] text-neutral-500">
-                                                                Official Rank #{finalRank}
+                                                                Rank #{finalRank}
                                                             </span>
                                                         )}
                                                     </div>
                                                 </TableCell>
+                                                <TableCell className="text-center">
+                                                    {sub.githubEvaluation?.status === 'EVALUATED' ? (
+                                                        <div className="flex items-center justify-center gap-1.5">
+                                                            <span className="font-extrabold text-sm text-emerald-400">
+                                                                {codeScore ?? 0}
+                                                            </span>
+                                                            <span className="text-[10px] text-neutral-500 font-normal">/100</span>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => setSelectedCodeReport(sub)}
+                                                                title="View AI Code Audit Report"
+                                                                className="h-6 w-6 p-0 text-neutral-400 hover:text-white"
+                                                            >
+                                                                <Eye className="w-3.5 h-3.5 text-indigo-400" />
+                                                            </Button>
+                                                        </div>
+                                                    ) : sub.githubEvaluation?.status === 'ANALYZING' ? (
+                                                        <Badge className="bg-indigo-900/40 text-indigo-300 border border-indigo-800 text-[10px] px-1 py-0">
+                                                            <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> Analyzing
+                                                        </Badge>
+                                                    ) : sub.githubEvaluation?.status === 'FAILED' ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => sub.team?._id && handleRetryCodeAnalysis(sub.team._id.toString())}
+                                                            className="h-6 text-[10px] border-red-500/40 text-red-300 hover:bg-red-950/30 px-2"
+                                                        >
+                                                            Retry
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-neutral-600 text-xs">—</span>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell className="text-center font-bold text-xs">
                                                     {pitchScore !== undefined ? (
-                                                        <span className="text-white font-semibold">
+                                                        <span className="text-neutral-300 font-medium">
                                                             {pitchScore} <span className="text-[10px] text-neutral-500 font-normal">/100</span>
                                                         </span>
                                                     ) : (
-                                                        <span className="text-neutral-500">—</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {isShortlisted ? (
-                                                        sub.githubEvaluation?.status === 'EVALUATED' ? (
-                                                            <div className="flex items-center justify-center gap-1">
-                                                                <span className="font-bold text-xs text-indigo-400">
-                                                                    {codeScore ?? 0}
-                                                                </span>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    onClick={() => setSelectedCodeReport(sub)}
-                                                                    className="h-5 px-1 text-[10px] text-neutral-400 hover:text-white"
-                                                                >
-                                                                    <Eye className="w-3 h-3" />
-                                                                </Button>
-                                                            </div>
-                                                        ) : sub.githubEvaluation?.status === 'ANALYZING' ? (
-                                                            <Badge className="bg-indigo-900/40 text-indigo-300 border border-indigo-800 text-[10px] px-1 py-0">
-                                                                <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> Analyzing
-                                                            </Badge>
-                                                        ) : sub.githubEvaluation?.status === 'FAILED' ? (
-                                                            <Badge variant="destructive" className="text-[10px] px-1 py-0">
-                                                                Failed
-                                                            </Badge>
-                                                        ) : (
-                                                            <Badge variant="outline" className="text-neutral-500 border-neutral-800 text-[10px] px-1 py-0">
-                                                                Pending
-                                                            </Badge>
-                                                        )
-                                                    ) : (
-                                                        <span className="text-neutral-600 text-xs">—</span>
+                                                        <span className="text-neutral-600">—</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
@@ -1675,27 +1692,34 @@ export default function AdminDashboard() {
                                                                 <span className="font-extrabold text-amber-300 text-lg">{finalScore}</span>
                                                                 <span className="text-[10px] text-neutral-500 font-normal">/100</span>
                                                             </div>
-                                                            {sub.finalScoreBreakdown && (
-                                                                <span className="text-[9px] text-neutral-400 font-mono">
-                                                                    {sub.finalScoreBreakdown.pitchContribution} + {sub.finalScoreBreakdown.githubContribution}
-                                                                </span>
-                                                            )}
                                                         </div>
-                                                    ) : pitchScore !== undefined ? (
+                                                    ) : codeScore !== undefined ? (
                                                         <div className="flex flex-col items-end">
-                                                            <span className="font-bold text-sm text-neutral-400">{pitchScore}</span>
-                                                            <span className="text-[9px] text-neutral-500 font-normal">Pitch Only</span>
+                                                            <span className="font-bold text-sm text-emerald-400">{codeScore}</span>
+                                                            <span className="text-[9px] text-neutral-500 font-normal">Score Ready</span>
                                                         </div>
                                                     ) : (
                                                         <span className="text-neutral-500 text-xs">—</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button asChild variant="outline" size="sm" className="h-8 text-xs border-neutral-800 hover:bg-neutral-800" disabled={sub.status !== 'EVALUATED'}>
-                                                        <Link href={`/admin/submission/${sub._id}`}>
-                                                            Scorecard <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-                                                        </Link>
-                                                    </Button>
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        {sub.githubEvaluation?.status === 'EVALUATED' && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => setSelectedCodeReport(sub)}
+                                                                className="h-7 text-xs text-indigo-400 hover:text-white hover:bg-indigo-950/40"
+                                                            >
+                                                                <Github className="w-3.5 h-3.5 mr-1" /> Audit
+                                                            </Button>
+                                                        )}
+                                                        <Button asChild variant="outline" size="sm" className="h-7 text-xs border-neutral-800 hover:bg-neutral-800">
+                                                            <Link href={`/admin/submission/${sub._id}`}>
+                                                                Report <ExternalLink className="ml-1 h-3 w-3" />
+                                                            </Link>
+                                                        </Button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -1757,37 +1781,37 @@ export default function AdminDashboard() {
                             {selectedCodeReport.githubEvaluation?.breakdown && (
                                 <div>
                                     <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
-                                        Rubric Breakdown (Out of 100)
+                                        100-Point Technical Rubric Breakdown
                                     </h4>
                                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                         <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
-                                            <span className="text-[11px] text-neutral-400 block">Code Quality</span>
+                                            <span className="text-[11px] text-neutral-400 block truncate" title="Code Quality & Maintainability">Code Quality</span>
                                             <span className="font-bold text-white text-base block mt-0.5">
-                                                {selectedCodeReport.githubEvaluation.breakdown.codeQuality} <span className="text-[10px] text-neutral-500">/25</span>
+                                                {selectedCodeReport.githubEvaluation.breakdown.codeQualityMaintainability ?? selectedCodeReport.githubEvaluation.breakdown.codeQuality} <span className="text-[10px] text-neutral-500">/25</span>
                                             </span>
                                         </div>
                                         <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
-                                            <span className="text-[11px] text-neutral-400 block">Implementation</span>
+                                            <span className="text-[11px] text-neutral-400 block truncate" title="Technical Implementation">Implementation</span>
                                             <span className="font-bold text-white text-base block mt-0.5">
                                                 {selectedCodeReport.githubEvaluation.breakdown.technicalImplementation} <span className="text-[10px] text-neutral-500">/25</span>
                                             </span>
                                         </div>
                                         <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
-                                            <span className="text-[11px] text-neutral-400 block">Architecture</span>
+                                            <span className="text-[11px] text-neutral-400 block truncate" title="Architecture & Project Structure">Architecture</span>
                                             <span className="font-bold text-white text-base block mt-0.5">
-                                                {selectedCodeReport.githubEvaluation.breakdown.architecture} <span className="text-[10px] text-neutral-500">/20</span>
+                                                {selectedCodeReport.githubEvaluation.breakdown.architectureProjectStructure ?? selectedCodeReport.githubEvaluation.breakdown.architecture} <span className="text-[10px] text-neutral-500">/20</span>
                                             </span>
                                         </div>
                                         <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
-                                            <span className="text-[11px] text-neutral-400 block">Commits</span>
+                                            <span className="text-[11px] text-neutral-400 block truncate" title="Testing & Error Handling">Testing & Errors</span>
                                             <span className="font-bold text-white text-base block mt-0.5">
-                                                {selectedCodeReport.githubEvaluation.breakdown.developmentActivity} <span className="text-[10px] text-neutral-500">/15</span>
+                                                {selectedCodeReport.githubEvaluation.breakdown.testingErrorHandling ?? selectedCodeReport.githubEvaluation.breakdown.documentationAndTesting} <span className="text-[10px] text-neutral-500">/15</span>
                                             </span>
                                         </div>
                                         <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
-                                            <span className="text-[11px] text-neutral-400 block">Testing & Docs</span>
+                                            <span className="text-[11px] text-neutral-400 block truncate" title="Documentation & Development Practices">Docs & Git</span>
                                             <span className="font-bold text-white text-base block mt-0.5">
-                                                {selectedCodeReport.githubEvaluation.breakdown.documentationAndTesting} <span className="text-[10px] text-neutral-500">/15</span>
+                                                {selectedCodeReport.githubEvaluation.breakdown.documentationDevPractices ?? selectedCodeReport.githubEvaluation.breakdown.developmentActivity} <span className="text-[10px] text-neutral-500">/15</span>
                                             </span>
                                         </div>
                                     </div>
@@ -1795,41 +1819,41 @@ export default function AdminDashboard() {
                             )}
 
                             {/* Summary */}
-                            {selectedCodeReport.githubEvaluation?.summary && (
+                            {(selectedCodeReport.githubEvaluation?.technicalSummary || selectedCodeReport.githubEvaluation?.summary) && (
                                 <div className="bg-neutral-950/50 p-4 rounded-xl border border-neutral-800 space-y-1">
                                     <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
                                         Executive Technical Summary
                                     </h4>
                                     <p className="text-xs text-neutral-300 leading-relaxed">
-                                        {selectedCodeReport.githubEvaluation.summary}
+                                        {selectedCodeReport.githubEvaluation.technicalSummary || selectedCodeReport.githubEvaluation.summary}
                                     </p>
                                 </div>
                             )}
 
-                            {/* Detailed Feedback */}
+                            {/* Detailed Feedback Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                                {selectedCodeReport.githubEvaluation?.architectureAssessment && (
-                                    <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
-                                        <h5 className="font-bold text-indigo-400 uppercase text-[11px]">System Architecture</h5>
-                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.architectureAssessment}</p>
-                                    </div>
-                                )}
-                                {selectedCodeReport.githubEvaluation?.codeQualityAssessment && (
+                                {(selectedCodeReport.githubEvaluation?.codeQualityObservations || selectedCodeReport.githubEvaluation?.codeQualityAssessment) && (
                                     <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
                                         <h5 className="font-bold text-indigo-400 uppercase text-[11px]">Code Quality & Hygiene</h5>
-                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.codeQualityAssessment}</p>
+                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.codeQualityObservations || selectedCodeReport.githubEvaluation.codeQualityAssessment}</p>
                                     </div>
                                 )}
-                                {selectedCodeReport.githubEvaluation?.testingAssessment && (
+                                {(selectedCodeReport.githubEvaluation?.architectureObservations || selectedCodeReport.githubEvaluation?.architectureAssessment) && (
                                     <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
-                                        <h5 className="font-bold text-indigo-400 uppercase text-[11px]">Automated Testing Evidence</h5>
-                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.testingAssessment}</p>
+                                        <h5 className="font-bold text-indigo-400 uppercase text-[11px]">System Architecture</h5>
+                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.architectureObservations || selectedCodeReport.githubEvaluation.architectureAssessment}</p>
                                     </div>
                                 )}
-                                {selectedCodeReport.githubEvaluation?.criteriaFeedback?.developmentActivity && (
+                                {(selectedCodeReport.githubEvaluation?.testingObservations || selectedCodeReport.githubEvaluation?.testingAssessment) && (
                                     <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
-                                        <h5 className="font-bold text-indigo-400 uppercase text-[11px]">Commit Effort & Cadence</h5>
-                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.criteriaFeedback.developmentActivity}</p>
+                                        <h5 className="font-bold text-indigo-400 uppercase text-[11px]">Testing & Error Handling</h5>
+                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.testingObservations || selectedCodeReport.githubEvaluation.testingAssessment}</p>
+                                    </div>
+                                )}
+                                {selectedCodeReport.githubEvaluation?.securityObservations && (
+                                    <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
+                                        <h5 className="font-bold text-amber-400 uppercase text-[11px]">Security Observations</h5>
+                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.securityObservations}</p>
                                     </div>
                                 )}
                             </div>
@@ -1838,7 +1862,7 @@ export default function AdminDashboard() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {selectedCodeReport.githubEvaluation?.strengths && selectedCodeReport.githubEvaluation.strengths.length > 0 && (
                                     <div className="bg-emerald-950/20 border border-emerald-500/20 p-3 rounded-lg space-y-1">
-                                        <h5 className="text-[11px] font-bold text-emerald-400 uppercase">Key Strengths</h5>
+                                        <h5 className="text-[11px] font-bold text-emerald-400 uppercase">Key Verified Strengths</h5>
                                         <ul className="text-xs text-neutral-300 space-y-1">
                                             {selectedCodeReport.githubEvaluation.strengths.map((s, i) => (
                                                 <li key={i} className="flex items-start gap-1.5"><span className="text-emerald-400">•</span> {s}</li>
@@ -1848,7 +1872,7 @@ export default function AdminDashboard() {
                                 )}
                                 {selectedCodeReport.githubEvaluation?.weaknesses && selectedCodeReport.githubEvaluation.weaknesses.length > 0 && (
                                     <div className="bg-red-950/20 border border-red-500/20 p-3 rounded-lg space-y-1">
-                                        <h5 className="text-[11px] font-bold text-red-400 uppercase">Technical Weaknesses</h5>
+                                        <h5 className="text-[11px] font-bold text-red-400 uppercase">Technical Weaknesses & Gaps</h5>
                                         <ul className="text-xs text-neutral-300 space-y-1">
                                             {selectedCodeReport.githubEvaluation.weaknesses.map((w, i) => (
                                                 <li key={i} className="flex items-start gap-1.5"><span className="text-red-400">•</span> {w}</li>
@@ -1857,6 +1881,54 @@ export default function AdminDashboard() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Missing Components / Implementation Evidence */}
+                            {((selectedCodeReport.githubEvaluation?.missingImplementationEvidence && selectedCodeReport.githubEvaluation.missingImplementationEvidence.length > 0) ||
+                              (selectedCodeReport.githubEvaluation?.missingComponents && selectedCodeReport.githubEvaluation.missingComponents.length > 0)) && (
+                                <div className="bg-neutral-950/40 border border-neutral-800 p-3 rounded-lg space-y-1">
+                                    <h5 className="text-[11px] font-bold text-neutral-400 uppercase">Missing or Incomplete Implementation Evidence</h5>
+                                    <ul className="text-xs text-neutral-300 space-y-1">
+                                        {(selectedCodeReport.githubEvaluation.missingImplementationEvidence || selectedCodeReport.githubEvaluation.missingComponents || []).map((m, i) => (
+                                            <li key={i} className="flex items-start gap-1.5"><span className="text-amber-400">•</span> {m}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {/* Improvement Recommendations */}
+                            {selectedCodeReport.githubEvaluation?.improvementRecommendations && selectedCodeReport.githubEvaluation.improvementRecommendations.length > 0 && (
+                                <div className="bg-indigo-950/20 border border-indigo-500/20 p-3 rounded-lg space-y-1">
+                                    <h5 className="text-[11px] font-bold text-indigo-400 uppercase">Actionable Recommendations</h5>
+                                    <ul className="text-xs text-neutral-300 space-y-1">
+                                        {selectedCodeReport.githubEvaluation.improvementRecommendations.map((r, i) => (
+                                            <li key={i} className="flex items-start gap-1.5"><span className="text-indigo-400">•</span> {r}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {/* Inspected Files & Limitations */}
+                            {((selectedCodeReport.githubEvaluation?.filesInspected && selectedCodeReport.githubEvaluation.filesInspected.length > 0) ||
+                              (selectedCodeReport.githubEvaluation?.analysisLimitations && selectedCodeReport.githubEvaluation.analysisLimitations.length > 0)) && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-neutral-400 border-t border-neutral-800/80 pt-3">
+                                    {selectedCodeReport.githubEvaluation.filesInspected && selectedCodeReport.githubEvaluation.filesInspected.length > 0 && (
+                                        <div>
+                                            <span className="font-semibold text-neutral-300 block mb-1">Files Inspected:</span>
+                                            <p className="font-mono text-[11px] text-neutral-400 truncate">
+                                                {selectedCodeReport.githubEvaluation.filesInspected.join(', ')}
+                                            </p>
+                                        </div>
+                                    )}
+                                    {selectedCodeReport.githubEvaluation.analysisLimitations && selectedCodeReport.githubEvaluation.analysisLimitations.length > 0 && (
+                                        <div>
+                                            <span className="font-semibold text-neutral-300 block mb-1">Analysis Limitations:</span>
+                                            <p className="text-[11px] text-neutral-400">
+                                                {selectedCodeReport.githubEvaluation.analysisLimitations.join('; ')}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="flex justify-end gap-2 border-t border-neutral-800 pt-4">
                                 <Button

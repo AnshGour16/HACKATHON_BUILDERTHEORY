@@ -72,27 +72,44 @@ interface IGitHubEvaluationData {
     status: 'NOT_SUBMITTED' | 'ANALYZING' | 'EVALUATED' | 'FAILED';
     technicalScore?: number;
     breakdown?: {
-        codeQuality: number;
-        technicalImplementation: number;
-        architecture: number;
-        developmentActivity: number;
-        documentationAndTesting: number;
+        codeQualityMaintainability?: number;
+        codeQuality?: number;
+        technicalImplementation?: number;
+        architectureProjectStructure?: number;
+        architecture?: number;
+        testingErrorHandling?: number;
+        documentationAndTesting?: number;
+        documentationDevPractices?: number;
+        developmentActivity?: number;
     };
     criteriaFeedback?: {
-        codeQuality: string;
-        technicalImplementation: string;
-        architecture: string;
-        developmentActivity: string;
-        documentationAndTesting: string;
+        codeQualityMaintainability?: string;
+        codeQuality?: string;
+        technicalImplementation?: string;
+        architectureProjectStructure?: string;
+        architecture?: string;
+        testingErrorHandling?: string;
+        documentationAndTesting?: string;
+        documentationDevPractices?: string;
+        developmentActivity?: string;
     };
     architectureAssessment?: string;
     codeQualityAssessment?: string;
     documentationAssessment?: string;
     testingAssessment?: string;
+    codeQualityObservations?: string;
+    architectureObservations?: string;
+    testingObservations?: string;
+    securityObservations?: string;
     strengths?: string[];
     weaknesses?: string[];
+    missingImplementationEvidence?: string[];
     missingComponents?: string[];
+    improvementRecommendations?: string[];
+    filesInspected?: string[];
+    analysisLimitations?: string[];
     summary?: string;
+    technicalSummary?: string;
     error?: string;
 }
 
@@ -821,33 +838,33 @@ export default function ParticipantDashboard() {
                                 </h4>
                                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                                     <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
-                                        <span className="text-[11px] text-neutral-400 block">Code Quality</span>
+                                        <span className="text-[11px] text-neutral-400 block truncate" title="Code Quality & Maintainability">Code Quality</span>
                                         <span className="text-lg font-bold text-white mt-0.5 block">
-                                            {submission.githubEvaluation.breakdown.codeQuality} <span className="text-xs text-neutral-500 font-normal">/ 25</span>
+                                            {submission.githubEvaluation.breakdown.codeQualityMaintainability ?? submission.githubEvaluation.breakdown.codeQuality} <span className="text-xs text-neutral-500 font-normal">/ 25</span>
                                         </span>
                                     </div>
                                     <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
-                                        <span className="text-[11px] text-neutral-400 block">Implementation</span>
+                                        <span className="text-[11px] text-neutral-400 block truncate" title="Technical Implementation">Implementation</span>
                                         <span className="text-lg font-bold text-white mt-0.5 block">
                                             {submission.githubEvaluation.breakdown.technicalImplementation} <span className="text-xs text-neutral-500 font-normal">/ 25</span>
                                         </span>
                                     </div>
                                     <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
-                                        <span className="text-[11px] text-neutral-400 block">Architecture</span>
+                                        <span className="text-[11px] text-neutral-400 block truncate" title="Architecture & Project Structure">Architecture</span>
                                         <span className="text-lg font-bold text-white mt-0.5 block">
-                                            {submission.githubEvaluation.breakdown.architecture} <span className="text-xs text-neutral-500 font-normal">/ 20</span>
+                                            {submission.githubEvaluation.breakdown.architectureProjectStructure ?? submission.githubEvaluation.breakdown.architecture} <span className="text-xs text-neutral-500 font-normal">/ 20</span>
                                         </span>
                                     </div>
                                     <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
-                                        <span className="text-[11px] text-neutral-400 block">Commit Activity</span>
+                                        <span className="text-[11px] text-neutral-400 block truncate" title="Testing & Error Handling">Testing & Errors</span>
                                         <span className="text-lg font-bold text-white mt-0.5 block">
-                                            {submission.githubEvaluation.breakdown.developmentActivity} <span className="text-xs text-neutral-500 font-normal">/ 15</span>
+                                            {submission.githubEvaluation.breakdown.testingErrorHandling ?? submission.githubEvaluation.breakdown.documentationAndTesting} <span className="text-xs text-neutral-500 font-normal">/ 15</span>
                                         </span>
                                     </div>
                                     <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
-                                        <span className="text-[11px] text-neutral-400 block">Testing & Docs</span>
+                                        <span className="text-[11px] text-neutral-400 block truncate" title="Documentation & Development Practices">Docs & Git</span>
                                         <span className="text-lg font-bold text-white mt-0.5 block">
-                                            {submission.githubEvaluation.breakdown.documentationAndTesting} <span className="text-xs text-neutral-500 font-normal">/ 15</span>
+                                            {submission.githubEvaluation.breakdown.documentationDevPractices ?? submission.githubEvaluation.breakdown.developmentActivity} <span className="text-xs text-neutral-500 font-normal">/ 15</span>
                                         </span>
                                     </div>
                                 </div>

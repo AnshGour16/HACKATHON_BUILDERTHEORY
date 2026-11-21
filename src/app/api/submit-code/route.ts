@@ -59,15 +59,13 @@ export async function GET() {
             shortlistingStatus?: string;
         } | null;
 
-        const isShortlisted = Boolean(team.isShortlisted);
-        const isCodePhaseOpen = Boolean(hackathon?.isCodeSubmissionOpen);
+        // By default, code submission is open unless explicitly locked by organizers
+        const isCodePhaseOpen = hackathon?.isCodeSubmissionOpen !== false;
         const hasPassedDeadline = Boolean(hackathon?.codeSubmissionDeadline && new Date() > new Date(hackathon.codeSubmissionDeadline));
 
         let round2Status: 'NOT_ELIGIBLE' | 'LOCKED' | 'DEADLINE_PASSED' | 'WAITING_FOR_SUBMISSION' | 'ANALYZING' | 'EVALUATED' | 'FAILED' = 'WAITING_FOR_SUBMISSION';
 
-        if (!isShortlisted) {
-            round2Status = 'NOT_ELIGIBLE';
-        } else if (!isCodePhaseOpen) {
+        if (!isCodePhaseOpen) {
             round2Status = 'LOCKED';
         } else if (hasPassedDeadline) {
             round2Status = 'DEADLINE_PASSED';
@@ -98,7 +96,7 @@ export async function GET() {
                 isCodeSubmissionOpen: isCodePhaseOpen,
                 codeSubmissionDeadline: hackathon?.codeSubmissionDeadline
             },
-            isEligible: isShortlisted,
+            isEligible: true,
             isCodePhaseOpen,
             round2Status,
             githubEvaluation: submission?.githubEvaluation || null
@@ -166,33 +164,31 @@ export async function POST(req: NextRequest) {
         }
 
         // 4. Server-Side Access Control Checks
-        // Check A: Must be shortlisted (HTTP 403)
-        if (!team.isShortlisted) {
+        // Check A: Hackathon code submission phase check (HTTP 403 only if explicitly locked false)
+        if (hackathon && hackathon.isCodeSubmissionOpen === false) {
             return NextResponse.json({
-                error: 'Access denied: Only teams shortlisted for Round 2 are eligible to submit GitHub repositories.'
+                error: 'GitHub repository submission is currently locked for this hackathon. Please wait for organizers to open the portal.'
             }, { status: 403 });
         }
 
-        // Check B: Hackathon Round 2 code submission phase must be unlocked by organizers (HTTP 403)
-        if (!hackathon.isCodeSubmissionOpen) {
-            return NextResponse.json({
-                error: 'Round 2 Code Submission is currently locked for this hackathon. Please wait for organizers to unlock the portal.'
-            }, { status: 403 });
-        }
-
-        // Check C: Deadline check if configured (HTTP 403)
+        // Check B: Deadline check if configured (HTTP 403)
         if (hackathon.codeSubmissionDeadline && new Date() > new Date(hackathon.codeSubmissionDeadline)) {
             return NextResponse.json({
-                error: 'The Round 2 GitHub submission deadline has passed.'
+                error: 'The GitHub repository submission deadline has passed.'
             }, { status: 403 });
         }
 
-        // 5. Existing Presentation Submission check
-        const submission = await Submission.findOne({ team: team._id });
+        // 5. Submission Record Resolution: Auto-create submission document if no pitch deck exists
+        let submission = await Submission.findOne({ team: team._id });
         if (!submission) {
-            return NextResponse.json({
-                error: 'No presentation submission found for this team. Please upload your project presentation first.'
-            }, { status: 404 });
+            submission = await Submission.create({
+                team: team._id,
+                hackathon: hackathon?._id,
+                fileUrl: 'NONE',
+                fileName: 'github-repository',
+                fileFormat: 'unknown',
+                status: 'PENDING'
+            });
         }
 
         // 6. Validate & Normalize Target GitHub URL
@@ -306,20 +302,30 @@ export async function POST(req: NextRequest) {
             stars: fetchResult.meta?.stars,
             forks: fetchResult.meta?.forks,
             openIssues: fetchResult.meta?.openIssues,
-            submittedAt: submission.githubEvaluation.submittedAt || new Date(),
+            submittedAt: submission.githubEvaluation?.submittedAt || new Date(),
             analyzedAt: new Date(),
             status: 'EVALUATED' as const,
             technicalScore: aiEvaluationResult.technicalScore,
+            overallScore: aiEvaluationResult.technicalScore,
             breakdown: aiEvaluationResult.breakdown,
             criteriaFeedback: aiEvaluationResult.criteriaFeedback,
+            technicalSummary: aiEvaluationResult.technicalSummary || aiEvaluationResult.summary,
             architectureAssessment: aiEvaluationResult.architectureAssessment,
             codeQualityAssessment: aiEvaluationResult.codeQualityAssessment,
             documentationAssessment: aiEvaluationResult.documentationAssessment,
             testingAssessment: aiEvaluationResult.testingAssessment,
+            codeQualityObservations: aiEvaluationResult.codeQualityObservations,
+            architectureObservations: aiEvaluationResult.architectureObservations,
+            testingObservations: aiEvaluationResult.testingObservations,
+            securityObservations: aiEvaluationResult.securityObservations,
             strengths: aiEvaluationResult.strengths,
             weaknesses: aiEvaluationResult.weaknesses,
-            missingComponents: aiEvaluationResult.missingComponents,
-            summary: aiEvaluationResult.summary
+            missingImplementationEvidence: aiEvaluationResult.missingImplementationEvidence,
+            missingComponents: aiEvaluationResult.missingImplementationEvidence,
+            improvementRecommendations: aiEvaluationResult.improvementRecommendations,
+            filesInspected: aiEvaluationResult.filesInspected,
+            analysisLimitations: aiEvaluationResult.analysisLimitations,
+            summary: aiEvaluationResult.technicalSummary || aiEvaluationResult.summary
         };
 
         submission.githubEvaluation = evalRecord;
@@ -340,6 +346,10 @@ export async function POST(req: NextRequest) {
         team.githubUrl = normalizedRepoUrl;
         team.githubStatus = 'EVALUATED';
         team.githubScore = aiEvaluationResult.technicalScore;
+        // Primary repository evaluation score is assigned directly
+        if (team.finalScore === undefined || team.finalScore === null) {
+            team.finalScore = aiEvaluationResult.technicalScore;
+        }
         await team.save();
 
         // Invalidate publication if results were published

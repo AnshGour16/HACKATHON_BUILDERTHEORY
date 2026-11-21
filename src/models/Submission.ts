@@ -7,19 +7,29 @@ export interface ICriterionScore {
 }
 
 export interface IGitHubCriteriaBreakdown {
-    codeQuality: number; // 0-25
+    codeQualityMaintainability?: number; // 0-25
     technicalImplementation: number; // 0-25
-    architecture: number; // 0-20
-    developmentActivity: number; // 0-15
-    documentationAndTesting: number; // 0-15
+    architectureProjectStructure?: number; // 0-20
+    testingErrorHandling?: number; // 0-15
+    documentationDevPractices?: number; // 0-15
+    // Legacy / backward-compatibility aliases
+    codeQuality?: number; // 0-25
+    architecture?: number; // 0-20
+    developmentActivity?: number; // 0-15
+    documentationAndTesting?: number; // 0-15
 }
 
 export interface IGitHubCriteriaFeedback {
-    codeQuality: string;
+    codeQualityMaintainability?: string;
     technicalImplementation: string;
-    architecture: string;
-    developmentActivity: string;
-    documentationAndTesting: string;
+    architectureProjectStructure?: string;
+    testingErrorHandling?: string;
+    documentationDevPractices?: string;
+    // Legacy / backward-compatibility aliases
+    codeQuality?: string;
+    architecture?: string;
+    developmentActivity?: string;
+    documentationAndTesting?: string;
 }
 
 export interface IGitHubEvaluation {
@@ -35,16 +45,26 @@ export interface IGitHubEvaluation {
     analyzedAt?: Date;
     status: 'NOT_SUBMITTED' | 'ANALYZING' | 'EVALUATED' | 'FAILED';
     technicalScore?: number; // 0-100
+    overallScore?: number; // 0-100 alias
     breakdown?: IGitHubCriteriaBreakdown;
     criteriaFeedback?: IGitHubCriteriaFeedback;
+    technicalSummary?: string;
+    summary?: string;
     architectureAssessment?: string;
     codeQualityAssessment?: string;
     documentationAssessment?: string;
     testingAssessment?: string;
+    codeQualityObservations?: string;
+    architectureObservations?: string;
+    testingObservations?: string;
+    securityObservations?: string;
     strengths?: string[];
     weaknesses?: string[];
+    missingImplementationEvidence?: string[];
     missingComponents?: string[];
-    summary?: string;
+    improvementRecommendations?: string[];
+    filesInspected?: string[];
+    analysisLimitations?: string[];
     error?: string;
 }
 
@@ -149,27 +169,45 @@ const SubmissionSchema: Schema = new Schema({
             default: 'NOT_SUBMITTED'
         },
         technicalScore: { type: Number },
+        overallScore: { type: Number },
         breakdown: {
-            codeQuality: { type: Number },
+            codeQualityMaintainability: { type: Number },
             technicalImplementation: { type: Number },
+            architectureProjectStructure: { type: Number },
+            testingErrorHandling: { type: Number },
+            documentationDevPractices: { type: Number },
+            codeQuality: { type: Number },
             architecture: { type: Number },
             developmentActivity: { type: Number },
             documentationAndTesting: { type: Number }
         },
         criteriaFeedback: {
-            codeQuality: { type: String },
+            codeQualityMaintainability: { type: String },
             technicalImplementation: { type: String },
+            architectureProjectStructure: { type: String },
+            testingErrorHandling: { type: String },
+            documentationDevPractices: { type: String },
+            codeQuality: { type: String },
             architecture: { type: String },
             developmentActivity: { type: String },
             documentationAndTesting: { type: String }
         },
+        technicalSummary: { type: String },
         architectureAssessment: { type: String },
         codeQualityAssessment: { type: String },
         documentationAssessment: { type: String },
         testingAssessment: { type: String },
+        codeQualityObservations: { type: String },
+        architectureObservations: { type: String },
+        testingObservations: { type: String },
+        securityObservations: { type: String },
         strengths: [{ type: String }],
         weaknesses: [{ type: String }],
+        missingImplementationEvidence: [{ type: String }],
         missingComponents: [{ type: String }],
+        improvementRecommendations: [{ type: String }],
+        filesInspected: [{ type: String }],
+        analysisLimitations: [{ type: String }],
         summary: { type: String },
         error: { type: String }
     },

@@ -14,24 +14,29 @@ export default function Home() {
         <div className="flex flex-col items-center mb-10 text-center space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-white/80">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span>AI-Powered Hackathon ATS</span>
+            <span>AI-Powered GitHub Repository Checker & Leaderboard</span>
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight">
-            Automate Project <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-400">Evaluation</span>
+            Automated Code Review & <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-400">Technical Ranking</span>
           </h1>
           <p className="max-w-2xl text-neutral-400 text-lg">
-            Upload your project pitch deck. Our AI instantly analyzes innovation, feasibility, detects plagiarism, and calculates your standardized ATS score.
+            Analyze participants&apos; GitHub repositories with Gemini AI. Audit code quality, system architecture, test coverage, and git commit history to produce objective, ranked leaderboards for hackathon judges.
           </p>
 
           <div className="flex flex-wrap justify-center gap-3 pt-2">
-            <Link href="/login">
-              <Button variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
-                Judge / Admin Portal
+            <Link href="/submit-code">
+              <Button variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 font-semibold">
+                Submit GitHub Repository
               </Button>
             </Link>
-            <Link href="/submit-code">
+            <Link href="/login">
               <Button variant="outline" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 backdrop-blur-sm hover:bg-neutral-800">
-                Phase 2: Submit Codebase
+                Judge / Admin Leaderboard
+              </Button>
+            </Link>
+            <Link href="/register">
+              <Button variant="ghost" className="text-neutral-300 hover:text-white">
+                Register Team
               </Button>
             </Link>
           </div>
@@ -44,8 +49,8 @@ export default function Home() {
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-white">1. Submit Pitch Deck</h2>
-              <p className="text-xs text-neutral-400 mt-0.5">Upload a PDF with your team details & problem statement.</p>
+              <h2 className="text-sm font-semibold text-white">1. Submit GitHub URL</h2>
+              <p className="text-xs text-neutral-400 mt-0.5">Submit your public repository URL for instant server-side validation.</p>
             </div>
           </div>
 
@@ -54,8 +59,8 @@ export default function Home() {
               <Cpu className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-white">2. Instant AI Scoring</h2>
-              <p className="text-xs text-neutral-400 mt-0.5">Gemini evaluates criteria, strengths, and missing slides.</p>
+              <h2 className="text-sm font-semibold text-white">2. 100-Point AI Rubric</h2>
+              <p className="text-xs text-neutral-400 mt-0.5">Gemini audits code hygiene, architecture, testing, and git practices.</p>
             </div>
           </div>
 
@@ -65,7 +70,7 @@ export default function Home() {
             </div>
             <div>
               <h2 className="text-sm font-semibold text-white">3. Ranked Leaderboard</h2>
-              <p className="text-xs text-neutral-400 mt-0.5">Projects are ranked automatically with PDF feedback reports.</p>
+              <p className="text-xs text-neutral-400 mt-0.5">Server-side deterministic rankings with rich reports for judges.</p>
             </div>
           </div>
         </div>

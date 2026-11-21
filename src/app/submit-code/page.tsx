@@ -157,26 +157,6 @@ export default function SubmitCodePage() {
         );
     }
 
-    if (pageState.round2Status === 'NOT_ELIGIBLE') {
-        return (
-            <div className="min-h-screen flex items-center justify-center p-4 bg-neutral-950">
-                <Card className="w-full max-w-md shadow-2xl border-neutral-800 bg-background/60 backdrop-blur-xl text-center p-6 space-y-4">
-                    <div className="mx-auto bg-neutral-800/60 w-16 h-16 rounded-full flex items-center justify-center">
-                        <Github className="w-8 h-8 text-neutral-400" />
-                    </div>
-                    <CardTitle className="text-2xl font-bold tracking-tight text-white">Round 2: Shortlist Only</CardTitle>
-                    <CardDescription className="text-neutral-400 text-sm leading-relaxed">
-                        Team <strong>&ldquo;{pageState.team?.name}&rdquo;</strong> is not shortlisted for Round 2.
-                        Repository submission is exclusively open to teams that advance from the Round 1 screening.
-                    </CardDescription>
-                    <Button asChild variant="outline" className="border-neutral-800 text-neutral-300 w-full">
-                        <Link href="/dashboard">View Team Dashboard</Link>
-                    </Button>
-                </Card>
-            </div>
-        );
-    }
-
     if (pageState.round2Status === 'LOCKED') {
         return (
             <div className="min-h-screen flex items-center justify-center p-4 bg-neutral-950">
@@ -184,9 +164,9 @@ export default function SubmitCodePage() {
                     <div className="mx-auto bg-amber-500/10 w-16 h-16 rounded-full flex items-center justify-center">
                         <AlertTriangle className="w-8 h-8 text-yellow-500" />
                     </div>
-                    <CardTitle className="text-2xl font-bold tracking-tight text-white">Round 2 Locked</CardTitle>
+                    <CardTitle className="text-2xl font-bold tracking-tight text-white">Code Submission Locked</CardTitle>
                     <CardDescription className="text-neutral-400 text-sm leading-relaxed">
-                        Team <strong>&ldquo;{pageState.team?.name}&rdquo;</strong> is shortlisted (Rank #{pageState.team?.shortlistRank || 1}), but the organizers have not opened the code submission portal yet.
+                        Repository submission for Team <strong>&ldquo;{pageState.team?.name}&rdquo;</strong> is currently locked. The hackathon organizers have not opened repository submissions yet.
                     </CardDescription>
                     <Button asChild variant="outline" className="border-neutral-800 text-neutral-300 w-full">
                         <Link href="/dashboard">Return to Dashboard</Link>
@@ -206,18 +186,20 @@ export default function SubmitCodePage() {
                         <Github className="w-6 h-6 text-primary" />
                     </div>
                     <div className="flex items-center justify-center gap-2 mb-1">
-                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs">
-                            🏆 Shortlisted (Rank #{pageState.team?.shortlistRank || 1})
-                        </Badge>
+                        {pageState.team?.isShortlisted && (
+                            <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs">
+                                🏆 Shortlisted (Rank #{pageState.team?.shortlistRank || 1})
+                            </Badge>
+                        )}
                         <Badge variant="outline" className="border-neutral-700 text-neutral-300 text-xs">
-                            {pageState.team?.track} Track
+                            {pageState.team?.track || 'General'} Track
                         </Badge>
                     </div>
                     <CardTitle className="text-2xl font-bold tracking-tight text-white">
-                        Submit Codebase: {pageState.team?.name}
+                        Submit Repository: {pageState.team?.name}
                     </CardTitle>
                     <CardDescription className="text-neutral-400 text-xs">
-                        Submit your public GitHub repository for automated AI architecture, code hygiene, and commit analysis.
+                        Submit your public GitHub repository for automated code quality, architecture, testing, and security evaluation.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

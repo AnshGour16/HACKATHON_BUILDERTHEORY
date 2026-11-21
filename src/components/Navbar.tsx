@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, UploadCloud, LogIn, LogOut, User as UserIcon } from 'lucide-react';
+import { LayoutDashboard, Github, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -14,16 +14,16 @@ export default async function Navbar() {
             <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                        <span className="text-primary font-bold text-xl">A</span>
+                        <span className="text-primary font-bold text-xl">R</span>
                     </div>
-                    <span className="text-xl font-bold tracking-tight text-white">Hackathon ATS</span>
+                    <span className="text-xl font-bold tracking-tight text-white">RepoRanker AI</span>
                 </Link>
 
                 <div className="flex gap-4 items-center">
                     <Button asChild variant="ghost" className="text-neutral-300 hover:text-white hover:bg-primary/20">
-                        <Link href="/">
-                            <UploadCloud className="w-4 h-4 mr-2" />
-                            Submit Project
+                        <Link href="/submit-code">
+                            <Github className="w-4 h-4 mr-2 text-primary" />
+                            Submit Repository
                         </Link>
                     </Button>
 

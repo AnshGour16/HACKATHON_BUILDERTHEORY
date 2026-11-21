@@ -111,7 +111,7 @@ export async function GET(req: NextRequest) {
 
         // Apply in-memory team filters if needed
         if (finalRanking) {
-            submissions = submissions.filter(s => s.team?.isShortlisted && (s.finalRank !== undefined || s.finalScore !== undefined));
+            submissions = submissions.filter(s => (s.finalRank !== undefined || s.finalScore !== undefined || s.githubEvaluation?.status === 'EVALUATED'));
             submissions.sort((a, b) => (a.finalRank || 9999) - (b.finalRank || 9999));
         } else if (shortlistedOnly) {
             submissions = submissions.filter(s => s.team?.isShortlisted);
@@ -123,16 +123,20 @@ export async function GET(req: NextRequest) {
 
         // CSV Header
         const headers = finalRanking ? [
-            'Final Rank',
+            'Rank',
             'Hackathon',
             'Team Name',
             'Project Title',
             'Track',
-            'Pitch Deck Score (R1)',
-            'GitHub Score (R2)',
-            'Final Composite Score',
+            'GitHub Repository',
+            'Technical Score',
+            'Code Quality (25)',
+            'Technical Implementation (25)',
+            'Architecture (20)',
+            'Testing & Errors (15)',
+            'Documentation & Dev (15)',
             'Winner Status',
-            'Problem Statement'
+            'AI Summary'
         ] : [
             'Rank',
             'Hackathon',
@@ -154,7 +158,24 @@ export async function GET(req: NextRequest) {
             const team = sub.team || {};
             const hackathon = sub.hackathon || {};
             const evalData = sub.aiEvaluation || {};
-            const gitData = sub.githubEvaluation || {};
+            const gitData = (sub.githubEvaluation || {}) as {
+                technicalScore?: number;
+                status?: string;
+                repoUrl?: string;
+                breakdown?: {
+                    codeQualityMaintainability?: number;
+                    codeQuality?: number;
+                    technicalImplementation?: number;
+                    architectureProjectStructure?: number;
+                    architecture?: number;
+                    testingErrorHandling?: number;
+                    documentationAndTesting?: number;
+                    documentationDevPractices?: number;
+                    developmentActivity?: number;
+                };
+                summary?: string;
+                technicalSummary?: string;
+            };
             const isShortlisted = Boolean(team.isShortlisted);
             const shortlistRank = team.shortlistRank ? `#${team.shortlistRank}` : '-';
             const qualifiedAt = team.shortlistedAt ? new Date(team.shortlistedAt).toLocaleDateString() : '-';
@@ -163,7 +184,15 @@ export async function GET(req: NextRequest) {
                 const finalRankDisplay = sub.finalRank || team.finalRank || idx + 1;
                 const winnerDisplay = team.isWinner
                     ? `WINNER (Position #${team.winnerPosition || 1})`
-                    : (finalRankDisplay <= 3 ? `Top ${finalRankDisplay} Finalist` : 'Finalist');
+                    : (finalRankDisplay <= 3 ? `Top ${finalRankDisplay} Finalist` : 'Participant');
+
+                const bd = gitData.breakdown || {};
+                const cq = bd.codeQualityMaintainability ?? bd.codeQuality ?? 'N/A';
+                const ti = bd.technicalImplementation ?? 'N/A';
+                const ar = bd.architectureProjectStructure ?? bd.architecture ?? 'N/A';
+                const te = bd.testingErrorHandling ?? bd.documentationAndTesting ?? 'N/A';
+                const dd = bd.documentationDevPractices ?? bd.developmentActivity ?? 'N/A';
+                const summary = (gitData.technicalSummary || gitData.summary || '').replace(/"/g, '""');
 
                 return [
                     finalRankDisplay,
@@ -171,11 +200,15 @@ export async function GET(req: NextRequest) {
                     team.name || 'Unknown',
                     (team.projectTitle || '').replace(/"/g, '""'),
                     team.track || 'General',
-                    evalData.totalScore !== undefined ? evalData.totalScore : 'N/A',
-                    gitData.technicalScore !== undefined ? gitData.technicalScore : 'N/A',
-                    sub.finalScore !== undefined ? sub.finalScore : (team.finalScore !== undefined ? team.finalScore : 'N/A'),
+                    gitData.repoUrl || 'N/A',
+                    gitData.technicalScore !== undefined ? gitData.technicalScore : (team.finalScore !== undefined ? team.finalScore : 'N/A'),
+                    cq,
+                    ti,
+                    ar,
+                    te,
+                    dd,
                     winnerDisplay,
-                    (team.problemStatement || '').replace(/"/g, '""')
+                    summary
                 ].map(String).map(item => `"${item}"`).join(',');
             }
 
