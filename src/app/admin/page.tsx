@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import {
     ExternalLink, RefreshCw, Download, Search, Trophy, Users,
     BarChart2, AlertTriangle, Sparkles, Filter, CheckCircle2, Sliders, ChevronDown, ChevronUp,
-    Github, Loader2, Eye, X
+    Github, Loader2, Eye, X, Award, Crown
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -42,6 +42,13 @@ interface IHackathonBrief {
     shortlistingMode?: string;
     shortlistedAt?: string;
     shortlistCount?: number;
+    pitchWeight?: number;
+    githubWeight?: number;
+    isFinalResultsPublished?: boolean;
+    finalResultsPublishedAt?: string;
+    finalResultsPublishedBy?: string;
+    winnerCount?: number;
+    finalRankingRecalculatedAt?: string;
 }
 
 interface IQualifyingPreviewTeam {
@@ -60,6 +67,29 @@ interface IShortlistPreviewResult {
     qualifyingTeams: IQualifyingPreviewTeam[];
 }
 
+interface IFinalRankingPreviewTeam {
+    finalRank: number;
+    teamId: string;
+    teamName: string;
+    track: string;
+    projectTitle?: string;
+    pitchScore: number;
+    githubScore: number;
+    finalScore: number;
+    status: 'COMPLETE' | 'PENDING_CODE' | 'FAILED_CODE' | 'PENDING_PITCH';
+    isWinner: boolean;
+    winnerPosition?: number;
+}
+
+interface IFinalRankingPreviewResult {
+    pitchWeight: number;
+    githubWeight: number;
+    totalEligible: number;
+    rankedCount: number;
+    incompleteCount: number;
+    rankings: IFinalRankingPreviewTeam[];
+}
+
 export default function AdminDashboard() {
     const [submissions, setSubmissions] = useState<ISubmissionWithTeam[]>([]);
     const [hackathons, setHackathons] = useState<IHackathonBrief[]>([]);
@@ -72,8 +102,8 @@ export default function AdminDashboard() {
     // Interactive Filters
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTrack, setSelectedTrack] = useState('ALL');
-    const [sortBy, setSortBy] = useState<'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST'>('SCORE_DESC');
-    const [shortlistStatusFilter, setShortlistStatusFilter] = useState<'ALL' | 'SHORTLISTED' | 'NOT_SHORTLISTED'>('ALL');
+    const [sortBy, setSortBy] = useState<'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST' | 'FINAL_RANK'>('FINAL_RANK');
+    const [shortlistStatusFilter, setShortlistStatusFilter] = useState<'ALL' | 'SHORTLISTED' | 'NOT_SHORTLISTED' | 'FINAL_RANKING'>('ALL');
 
     // Organizer Shortlisting Controls State
     const [showShortlistPanel, setShowShortlistPanel] = useState(true);
@@ -90,6 +120,19 @@ export default function AdminDashboard() {
     const [selectedCodeReport, setSelectedCodeReport] = useState<ISubmissionWithTeam | null>(null);
     const [retryingTeamId, setRetryingTeamId] = useState<string | null>(null);
     const [round2Notification, setRound2Notification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+    // Phase 6: Final Composite Ranking & Winner Selection State
+    const [showFinalPanel, setShowFinalPanel] = useState(true);
+    const [pitchWeight, setPitchWeight] = useState<number>(40);
+    const [githubWeight, setGithubWeight] = useState<number>(60);
+    const [winnerCount, setWinnerCount] = useState<number>(3);
+    const [finalPreviewData, setFinalPreviewData] = useState<IFinalRankingPreviewResult | null>(null);
+    const [isPreviewingFinal, setIsPreviewingFinal] = useState(false);
+    const [isCalculatingFinal, setIsCalculatingFinal] = useState(false);
+    const [isPublishingFinal, setIsPublishingFinal] = useState(false);
+    const [isUnpublishingFinal, setIsUnpublishingFinal] = useState(false);
+    const [showPublishModal, setShowPublishModal] = useState(false);
+    const [finalRankingNotification, setFinalRankingNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     const fetchHackathons = async () => {
         try {
@@ -144,6 +187,8 @@ export default function AdminDashboard() {
         setSelectedTrack('ALL');
         setPreviewData(null);
         setShortlistNotification(null);
+        setFinalPreviewData(null);
+        setFinalRankingNotification(null);
         fetchSubmissions(hId);
         fetchSettings(hId);
     };
@@ -187,12 +232,22 @@ export default function AdminDashboard() {
         return hackathons.length > 0 ? hackathons[0] : null;
     }, [hackathons, selectedHackathonId]);
 
+    // Synchronize hackathon weights when active hackathon changes
+    useEffect(() => {
+        if (activeHackathon) {
+            if (activeHackathon.pitchWeight !== undefined) setPitchWeight(activeHackathon.pitchWeight);
+            if (activeHackathon.githubWeight !== undefined) setGithubWeight(activeHackathon.githubWeight);
+            if (activeHackathon.winnerCount !== undefined) setWinnerCount(activeHackathon.winnerCount);
+        }
+    }, [activeHackathon]);
+
     // Computed Analytics
     const stats = useMemo(() => {
         const total = submissions.length;
         if (total === 0) return {
             total: 0, highest: 0, topTeam: 'N/A', average: 0, plagiarismCount: 0, persistentShortlistedCount: 0,
-            round2ShortlistedCount: 0, round2SubmittedCount: 0, round2PendingCount: 0, round2EvaluatedCount: 0, round2FailedCount: 0
+            round2ShortlistedCount: 0, round2SubmittedCount: 0, round2PendingCount: 0, round2EvaluatedCount: 0, round2FailedCount: 0,
+            finalRankedCount: 0, winnersCount: 0
         };
 
         let highest = 0;
@@ -205,6 +260,8 @@ export default function AdminDashboard() {
         let round2SubmittedCount = 0;
         let round2EvaluatedCount = 0;
         let round2FailedCount = 0;
+        let finalRankedCount = 0;
+        let winnersCount = 0;
 
         submissions.forEach((sub) => {
             const score = sub.aiEvaluation?.totalScore || 0;
@@ -231,6 +288,12 @@ export default function AdminDashboard() {
             } else if (sub.githubEvaluation?.status === 'FAILED') {
                 round2FailedCount++;
             }
+            if (sub.finalScore !== undefined || sub.team?.finalScore !== undefined) {
+                finalRankedCount++;
+            }
+            if (sub.isWinner || sub.team?.isWinner) {
+                winnersCount++;
+            }
         });
 
         const average = evaluatedCount > 0 ? Math.round(totalScoreSum / evaluatedCount) : 0;
@@ -247,7 +310,9 @@ export default function AdminDashboard() {
             round2SubmittedCount,
             round2PendingCount,
             round2EvaluatedCount,
-            round2FailedCount
+            round2FailedCount,
+            finalRankedCount,
+            winnersCount
         };
     }, [submissions]);
 
@@ -267,11 +332,20 @@ export default function AdminDashboard() {
                 const matchesShortlistFilter =
                     shortlistStatusFilter === 'ALL' ||
                     (shortlistStatusFilter === 'SHORTLISTED' && sub.team?.isShortlisted) ||
-                    (shortlistStatusFilter === 'NOT_SHORTLISTED' && !sub.team?.isShortlisted);
+                    (shortlistStatusFilter === 'NOT_SHORTLISTED' && !sub.team?.isShortlisted) ||
+                    (shortlistStatusFilter === 'FINAL_RANKING' && sub.team?.isShortlisted && (sub.finalScore !== undefined || sub.team?.finalScore !== undefined));
 
                 return matchesSearch && matchesTrack && matchesShortlistFilter;
             })
             .sort((a, b) => {
+                if (sortBy === 'FINAL_RANK') {
+                    const rankA = a.finalRank ?? a.team?.finalRank ?? 999999;
+                    const rankB = b.finalRank ?? b.team?.finalRank ?? 999999;
+                    if (rankA !== rankB) return rankA - rankB;
+                    const scoreA = a.finalScore ?? a.team?.finalScore ?? -1;
+                    const scoreB = b.finalScore ?? b.team?.finalScore ?? -1;
+                    return scoreB - scoreA;
+                }
                 const scoreA = a.aiEvaluation?.totalScore ?? -1;
                 const scoreB = b.aiEvaluation?.totalScore ?? -1;
 
@@ -390,6 +464,169 @@ export default function AdminDashboard() {
         }
     };
 
+    // ==========================================
+    // PHASE 6: FINAL COMPOSITE RANKING ACTIONS
+    // ==========================================
+
+    const handlePreviewFinalRankings = async () => {
+        if (!activeHackathon) {
+            setFinalRankingNotification({ type: 'error', message: 'Please select a specific hackathon to configure final rankings.' });
+            return;
+        }
+        if (pitchWeight + githubWeight !== 100) {
+            setFinalRankingNotification({ type: 'error', message: 'Pitch and GitHub weights must total exactly 100%.' });
+            return;
+        }
+
+        setIsPreviewingFinal(true);
+        setFinalRankingNotification(null);
+
+        try {
+            const res = await fetch(`/api/hackathons/${activeHackathon._id}/final-rankings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'preview',
+                    pitchWeight,
+                    githubWeight,
+                    winnerCount
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setFinalPreviewData(data.data);
+                setFinalRankingNotification({
+                    type: 'success',
+                    message: `Dry-run preview generated: ${data.data.rankedCount} teams ranked deterministically (${data.data.incompleteCount} pending code/failed).`
+                });
+            } else {
+                setFinalRankingNotification({ type: 'error', message: data.error || 'Failed to preview final rankings.' });
+            }
+        } catch {
+            setFinalRankingNotification({ type: 'error', message: 'Network error generating final ranking preview.' });
+        } finally {
+            setIsPreviewingFinal(false);
+        }
+    };
+
+    const handleCalculateFinalRankings = async () => {
+        if (!activeHackathon) {
+            setFinalRankingNotification({ type: 'error', message: 'Please select a specific hackathon to calculate final rankings.' });
+            return;
+        }
+        if (pitchWeight + githubWeight !== 100) {
+            setFinalRankingNotification({ type: 'error', message: 'Pitch and GitHub weights must total exactly 100%.' });
+            return;
+        }
+
+        setIsCalculatingFinal(true);
+        setFinalRankingNotification(null);
+
+        try {
+            const res = await fetch(`/api/hackathons/${activeHackathon._id}/final-rankings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'calculate',
+                    pitchWeight,
+                    githubWeight
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setFinalRankingNotification({
+                    type: 'success',
+                    message: `Successfully calculated and persisted final rankings for ${data.data.rankedCount} teams! MongoDB updated.`
+                });
+                setFinalPreviewData(null);
+                fetchSubmissions(selectedHackathonId);
+                fetchHackathons();
+            } else {
+                setFinalRankingNotification({ type: 'error', message: data.error || 'Failed to persist final rankings.' });
+            }
+        } catch {
+            setFinalRankingNotification({ type: 'error', message: 'Network error calculating final rankings.' });
+        } finally {
+            setIsCalculatingFinal(false);
+        }
+    };
+
+    const handlePublishFinalResults = async () => {
+        if (!activeHackathon) {
+            setFinalRankingNotification({ type: 'error', message: 'Please select a specific hackathon to publish results.' });
+            return;
+        }
+
+        setIsPublishingFinal(true);
+        setFinalRankingNotification(null);
+
+        try {
+            const res = await fetch(`/api/hackathons/${activeHackathon._id}/final-rankings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'publish',
+                    winnerCount
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setFinalRankingNotification({
+                    type: 'success',
+                    message: `🎉 Official Final Results & Top ${data.data.winnerCount} Winners Published! Participants can now view their official rank & badges.`
+                });
+                setShowPublishModal(false);
+                fetchSubmissions(selectedHackathonId);
+                fetchHackathons();
+            } else {
+                setFinalRankingNotification({ type: 'error', message: data.error || 'Failed to publish final results.' });
+            }
+        } catch {
+            setFinalRankingNotification({ type: 'error', message: 'Network error publishing final results.' });
+        } finally {
+            setIsPublishingFinal(false);
+        }
+    };
+
+    const handleUnpublishFinalResults = async () => {
+        if (!activeHackathon) {
+            setFinalRankingNotification({ type: 'error', message: 'Please select a specific hackathon.' });
+            return;
+        }
+
+        setIsUnpublishingFinal(true);
+        setFinalRankingNotification(null);
+
+        try {
+            const res = await fetch(`/api/hackathons/${activeHackathon._id}/final-rankings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'unpublish'
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setFinalRankingNotification({
+                    type: 'success',
+                    message: 'Final results have been unpublished. Rankings and winner badges are now masked from participants.'
+                });
+                fetchSubmissions(selectedHackathonId);
+                fetchHackathons();
+            } else {
+                setFinalRankingNotification({ type: 'error', message: data.error || 'Failed to unpublish final results.' });
+            }
+        } catch {
+            setFinalRankingNotification({ type: 'error', message: 'Network error unpublishing results.' });
+        } finally {
+            setIsUnpublishingFinal(false);
+        }
+    };
+
     return (
         <div className="min-h-screen p-6 md:p-10 relative">
             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
@@ -453,6 +690,15 @@ export default function AdminDashboard() {
                                     {shortlistStatusFilter === 'SHORTLISTED' ? 'Export Shortlisted CSV' : 'Export CSV'}
                                 </a>
                             </Button>
+                            <Button asChild variant="outline" size="sm" className="text-amber-300 border-amber-800/80 bg-amber-950/30 hover:bg-amber-900/40">
+                                <a
+                                    href={`/api/export?finalRanking=true${selectedHackathonId !== 'ALL' ? `&hackathonId=${selectedHackathonId}` : ''}${selectedTrack !== 'ALL' ? `&track=${selectedTrack}` : ''}`}
+                                    download="hackathon_final_leaderboard.csv"
+                                >
+                                    <Crown className="h-4 w-4 mr-1.5 text-amber-400" />
+                                    Export Final Rankings
+                                </a>
+                            </Button>
                             <Button onClick={() => fetchSubmissions(selectedHackathonId)} variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
                                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                             </Button>
@@ -480,9 +726,9 @@ export default function AdminDashboard() {
                                 <Trophy className="w-5 h-5" />
                             </div>
                             <div>
-                                <span className="text-xs text-neutral-400 font-medium">Persisted Qualifiers</span>
+                                <span className="text-xs text-neutral-400 font-medium">Round 2 Shortlist</span>
                                 <h3 className="text-xl font-bold text-white">
-                                    {stats.persistentShortlistedCount} <span className="text-xs font-normal text-emerald-400">Shortlisted</span>
+                                    {stats.persistentShortlistedCount} <span className="text-xs font-normal text-emerald-400">Teams</span>
                                 </h3>
                             </div>
                         </CardContent>
@@ -494,8 +740,10 @@ export default function AdminDashboard() {
                                 <BarChart2 className="w-5 h-5" />
                             </div>
                             <div>
-                                <span className="text-xs text-neutral-400 font-medium">Average Score</span>
-                                <h3 className="text-xl font-bold text-white">{stats.average}/100</h3>
+                                <span className="text-xs text-neutral-400 font-medium">Final Composite Ranked</span>
+                                <h3 className="text-xl font-bold text-white">
+                                    {stats.finalRankedCount} <span className="text-xs font-normal text-indigo-300">Teams</span>
+                                </h3>
                             </div>
                         </CardContent>
                     </Card>
@@ -503,11 +751,20 @@ export default function AdminDashboard() {
                     <Card className="bg-neutral-900/40 border-neutral-800/80 backdrop-blur-sm">
                         <CardContent className="p-4 flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-                                <AlertTriangle className="w-5 h-5" />
+                                <Crown className="w-5 h-5" />
                             </div>
                             <div>
-                                <span className="text-xs text-neutral-400 font-medium">Plagiarism Alerts</span>
-                                <h3 className="text-xl font-bold text-white">{stats.plagiarismCount}</h3>
+                                <span className="text-xs text-neutral-400 font-medium">Official Winners</span>
+                                <h3 className="text-xl font-bold text-white">
+                                    {activeHackathon?.isFinalResultsPublished ? (
+                                        <>
+                                            {stats.winnersCount || activeHackathon.winnerCount || 3}{' '}
+                                            <span className="text-xs font-semibold text-emerald-400">Published</span>
+                                        </>
+                                    ) : (
+                                        <span className="text-sm font-semibold text-amber-300">Draft / Review</span>
+                                    )}
+                                </h3>
                             </div>
                         </CardContent>
                     </Card>
@@ -802,6 +1059,364 @@ export default function AdminDashboard() {
                     )}
                 </Card>
 
+                {/* --- PHASE 6: FINAL COMPOSITE EVALUATION & WINNER SELECTION CENTER --- */}
+                <Card className="border-amber-500/40 bg-neutral-950/70 backdrop-blur-md shadow-xl overflow-hidden">
+                    <CardHeader
+                        className="py-4 border-b border-neutral-800/60 flex flex-row items-center justify-between cursor-pointer"
+                        onClick={() => setShowFinalPanel(!showFinalPanel)}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                                <Crown className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                                    Final Composite Ranking & Winner Selection Engine
+                                    {activeHackathon?.isFinalResultsPublished ? (
+                                        <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-semibold">
+                                            ● Published ({activeHackathon.winnerCount || 3} Winners Announced)
+                                        </Badge>
+                                    ) : (
+                                        <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-semibold">
+                                            ○ Results Draft / Masked from Participants
+                                        </Badge>
+                                    )}
+                                </CardTitle>
+                                <CardDescription className="text-xs text-neutral-400">
+                                    Combine Round 1 Pitch Deck scores and Round 2 GitHub Technical scores with configurable weights, preview deterministic ties, and publish official winners.
+                                </CardDescription>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {activeHackathon?.isFinalResultsPublished ? (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={isUnpublishingFinal}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleUnpublishFinalResults();
+                                    }}
+                                    className="text-xs h-7 border-amber-500/40 text-amber-300 hover:bg-amber-950/40"
+                                >
+                                    {isUnpublishingFinal ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+                                    Unpublish Results
+                                </Button>
+                            ) : (
+                                <Button
+                                    size="sm"
+                                    disabled={isPublishingFinal}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowPublishModal(true);
+                                    }}
+                                    className="text-xs h-7 bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-md shadow-amber-500/20"
+                                >
+                                    <Crown className="w-3.5 h-3.5 mr-1" />
+                                    Publish Final Results
+                                </Button>
+                            )}
+                            <Button variant="ghost" size="sm" className="text-neutral-400">
+                                {showFinalPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </Button>
+                        </div>
+                    </CardHeader>
+
+                    {showFinalPanel && (
+                        <CardContent className="p-6 space-y-6">
+                            {/* Notification Banner */}
+                            {finalRankingNotification && (
+                                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 border ${finalRankingNotification.type === 'success' ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-red-950/40 border-red-500/40 text-red-300'}`}>
+                                    {finalRankingNotification.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />}
+                                    <span>{finalRankingNotification.message}</span>
+                                </div>
+                            )}
+
+                            {/* Weight Configuration and Winner Selection Controls */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Left Column: Evaluation Weights */}
+                                <div className="space-y-4 bg-neutral-900/50 p-4 rounded-xl border border-neutral-800">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                                            <Sliders className="w-3.5 h-3.5 text-amber-400" /> Composite Weight Settings
+                                        </h4>
+                                        <Badge
+                                            variant="outline"
+                                            className={`text-[10px] font-mono font-semibold ${pitchWeight + githubWeight === 100 ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' : 'border-red-500/40 text-red-400 bg-red-500/10'}`}
+                                        >
+                                            {pitchWeight + githubWeight === 100 ? '✓ Total: 100%' : `⚠ Invalid: ${pitchWeight + githubWeight}% (Must equal 100%)`}
+                                        </Badge>
+                                    </div>
+
+                                    {/* Presets */}
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setPitchWeight(40); setGithubWeight(60); setFinalPreviewData(null); }}
+                                            className={`px-2.5 py-1 text-xs rounded-lg border transition-all ${pitchWeight === 40 && githubWeight === 60 ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'}`}
+                                        >
+                                            40:60 (Default)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setPitchWeight(50); setGithubWeight(50); setFinalPreviewData(null); }}
+                                            className={`px-2.5 py-1 text-xs rounded-lg border transition-all ${pitchWeight === 50 && githubWeight === 50 ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'}`}
+                                        >
+                                            50:50 (Balanced)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setPitchWeight(60); setGithubWeight(40); setFinalPreviewData(null); }}
+                                            className={`px-2.5 py-1 text-xs rounded-lg border transition-all ${pitchWeight === 60 && githubWeight === 40 ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'}`}
+                                        >
+                                            60:40 (Deck Focused)
+                                        </button>
+                                    </div>
+
+                                    {/* Inputs */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="bg-neutral-950 p-3 rounded-lg border border-neutral-800 space-y-1">
+                                            <label className="text-[11px] font-medium text-neutral-400 block">Round 1 Pitch Weight</label>
+                                            <div className="flex items-center gap-1.5">
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    max={100}
+                                                    value={pitchWeight}
+                                                    onChange={(e) => {
+                                                        const p = Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0));
+                                                        setPitchWeight(p);
+                                                        setFinalPreviewData(null);
+                                                    }}
+                                                    className="h-8 text-xs bg-neutral-900 border-neutral-700 text-white font-bold"
+                                                />
+                                                <span className="text-xs text-neutral-400 font-bold">%</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-neutral-950 p-3 rounded-lg border border-neutral-800 space-y-1">
+                                            <label className="text-[11px] font-medium text-neutral-400 block">Round 2 GitHub Weight</label>
+                                            <div className="flex items-center gap-1.5">
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    max={100}
+                                                    value={githubWeight}
+                                                    onChange={(e) => {
+                                                        const g = Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0));
+                                                        setGithubWeight(g);
+                                                        setFinalPreviewData(null);
+                                                    }}
+                                                    className="h-8 text-xs bg-neutral-900 border-neutral-700 text-white font-bold"
+                                                />
+                                                <span className="text-xs text-neutral-400 font-bold">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Formula Visualizer */}
+                                    <div className="bg-neutral-950/80 p-2.5 rounded-lg border border-neutral-800 text-xs font-mono text-neutral-300">
+                                        <span className="text-amber-400 font-bold">Formula:</span> Final Score = (Pitch × {pitchWeight / 100}) + (GitHub × {githubWeight / 100})
+                                    </div>
+
+                                    {/* Calculate Action Buttons */}
+                                    <div className="flex items-center gap-2 pt-1">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={isPreviewingFinal || isCalculatingFinal || pitchWeight + githubWeight !== 100}
+                                            onClick={handlePreviewFinalRankings}
+                                            className="text-xs h-8 border-neutral-700 text-white hover:bg-neutral-800"
+                                        >
+                                            {isPreviewingFinal ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Eye className="w-3.5 h-3.5 mr-1.5" />}
+                                            Preview Rankings
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            disabled={isCalculatingFinal || pitchWeight + githubWeight !== 100}
+                                            onClick={handleCalculateFinalRankings}
+                                            className="text-xs h-8 bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-md shadow-amber-500/20"
+                                        >
+                                            {isCalculatingFinal ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Crown className="w-3.5 h-3.5 mr-1.5" />}
+                                            Calculate & Save Rankings
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {/* Right Column: Winner Selection & Official Publication */}
+                                <div className="space-y-4 bg-neutral-900/50 p-4 rounded-xl border border-neutral-800 flex flex-col justify-between">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                                                <Award className="w-3.5 h-3.5 text-amber-400" /> Podium & Winner Selection
+                                            </h4>
+                                            <span className="text-[11px] text-neutral-400">
+                                                Target Finalists: <strong className="text-white">{winnerCount}</strong>
+                                            </span>
+                                        </div>
+
+                                        {/* Winner Count Selector */}
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] text-neutral-400 block">Number of Official Winners</label>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {[3, 5, 10].map((n) => (
+                                                    <button
+                                                        key={n}
+                                                        type="button"
+                                                        onClick={() => setWinnerCount(n)}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${winnerCount === n ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'}`}
+                                                    >
+                                                        Top {n} {n === 3 ? '(Podium)' : 'Finalists'}
+                                                    </button>
+                                                ))}
+                                                <div className="flex items-center gap-1.5 bg-neutral-950 px-2 py-1 rounded-lg border border-neutral-800">
+                                                    <span className="text-[11px] text-neutral-400">Custom:</span>
+                                                    <Input
+                                                        type="number"
+                                                        min={1}
+                                                        max={50}
+                                                        value={winnerCount}
+                                                        onChange={(e) => setWinnerCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                                                        className="w-14 h-6 text-xs bg-neutral-900 border-neutral-700 text-white font-bold text-center"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-neutral-950/80 p-3 rounded-lg border border-neutral-800 text-xs text-neutral-400 space-y-1">
+                                            <span className="text-white font-semibold block">Winner Podiums:</span>
+                                            <div className="flex items-center gap-2 flex-wrap text-[11px] pt-1">
+                                                <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px]">🏆 1st: Gold</Badge>
+                                                <Badge className="bg-slate-400/20 text-slate-300 border border-slate-400/40 text-[10px]">🥈 2nd: Silver</Badge>
+                                                <Badge className="bg-amber-700/20 text-amber-500 border border-amber-700/40 text-[10px]">🥉 3rd: Bronze</Badge>
+                                                {winnerCount > 3 && (
+                                                    <Badge variant="outline" className="border-indigo-500/40 text-indigo-400 text-[10px]">
+                                                        🏅 4th - {winnerCount}th: Official Finalists
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Publication Status & Action */}
+                                    <div className="pt-3 border-t border-neutral-800 space-y-2">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-neutral-400">Participant Visibility:</span>
+                                            {activeHackathon?.isFinalResultsPublished ? (
+                                                <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                                                    <CheckCircle2 className="w-3.5 h-3.5" /> Visible in Participant Dashboard
+                                                </span>
+                                            ) : (
+                                                <span className="text-amber-400 font-semibold flex items-center gap-1">
+                                                    <AlertTriangle className="w-3.5 h-3.5" /> Hidden from Participants (Draft Mode)
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {activeHackathon?.isFinalResultsPublished ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled={isUnpublishingFinal}
+                                                    onClick={handleUnpublishFinalResults}
+                                                    className="w-full text-xs h-8 border-amber-500/40 text-amber-300 hover:bg-amber-950/40"
+                                                >
+                                                    {isUnpublishingFinal ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+                                                    Unpublish Results (Revert to Draft)
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    disabled={isPublishingFinal}
+                                                    onClick={() => setShowPublishModal(true)}
+                                                    className="w-full text-xs h-8 bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-md shadow-amber-500/20"
+                                                >
+                                                    <Crown className="w-3.5 h-3.5 mr-1.5" />
+                                                    Publish Final Results & Declare Top {winnerCount} Winners
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Dry-Run Ranking Preview Drawer */}
+                            {finalPreviewData && (
+                                <div className="p-4 rounded-xl bg-neutral-900/90 border border-amber-500/40 space-y-4 animate-in fade-in">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+                                        <div className="flex items-center gap-3">
+                                            <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40">
+                                                Dry-Run Preview: {finalPreviewData.rankedCount} Teams Ranked
+                                            </Badge>
+                                            <span className="text-xs text-neutral-400">
+                                                Weights: <strong className="text-white">{finalPreviewData.pitchWeight}% Pitch : {finalPreviewData.githubWeight}% Code</strong>
+                                            </span>
+                                            {finalPreviewData.incompleteCount > 0 && (
+                                                <span className="text-xs text-amber-400">
+                                                    Incomplete: <strong>{finalPreviewData.incompleteCount} Teams Pending Code</strong>
+                                                </span>
+                                            )}
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            onClick={handleCalculateFinalRankings}
+                                            disabled={isCalculatingFinal}
+                                            className="bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs h-7 shadow-md"
+                                        >
+                                            {isCalculatingFinal ? 'Saving to Database...' : 'Save this Ranking in MongoDB'}
+                                        </Button>
+                                    </div>
+
+                                    <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                                        {finalPreviewData.rankings.map((rt) => {
+                                            const isTopPodium = rt.finalRank <= winnerCount;
+                                            return (
+                                                <div
+                                                    key={rt.teamId}
+                                                    className={`flex items-center justify-between p-2.5 rounded-lg border ${isTopPodium ? 'bg-amber-950/20 border-amber-500/40' : 'bg-neutral-950/70 border-neutral-800/80'}`}
+                                                >
+                                                    <div className="flex items-center gap-2.5">
+                                                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full font-extrabold text-xs ${rt.finalRank === 1 ? 'bg-amber-500 text-black' : rt.finalRank === 2 ? 'bg-slate-300 text-black' : rt.finalRank === 3 ? 'bg-amber-700 text-white' : 'bg-neutral-800 text-neutral-300'}`}>
+                                                            #{rt.finalRank}
+                                                        </span>
+                                                        <span className="font-semibold text-white">{rt.teamName}</span>
+                                                        <Badge variant="outline" className="text-[10px] py-0 border-neutral-700 text-neutral-400">
+                                                            {rt.track}
+                                                        </Badge>
+                                                        {rt.finalRank === 1 && <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px]">🏆 Champion</Badge>}
+                                                        {rt.finalRank === 2 && <Badge className="bg-slate-400/20 text-slate-300 border-slate-400/40 text-[10px]">🥈 2nd Place</Badge>}
+                                                        {rt.finalRank === 3 && <Badge className="bg-amber-700/20 text-amber-500 border-amber-700/40 text-[10px]">🥉 3rd Place</Badge>}
+                                                        {rt.finalRank > 3 && rt.finalRank <= winnerCount && <Badge className="bg-indigo-500/20 text-indigo-300 border-indigo-500/40 text-[10px]">🏅 Finalist</Badge>}
+                                                    </div>
+
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-[11px] text-neutral-400">
+                                                            Pitch: <strong className="text-white">{rt.pitchScore}</strong>
+                                                        </span>
+                                                        <span className="text-[11px] text-neutral-400">
+                                                            Code: <strong className="text-white">{rt.githubScore}</strong>
+                                                        </span>
+                                                        <div className="bg-neutral-900 px-2 py-0.5 rounded border border-neutral-700">
+                                                            <span className="font-extrabold text-amber-300 text-xs">
+                                                                {rt.finalScore} <span className="text-[10px] font-normal text-neutral-400">/ 100</span>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    )}
+                </Card>
+
                 {/* Filter & Search Bar */}
                 <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-neutral-900/40 p-3.5 rounded-xl border border-neutral-800/80 backdrop-blur-sm">
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -828,6 +1443,15 @@ export default function AdminDashboard() {
                                 className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${shortlistStatusFilter === 'SHORTLISTED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm' : 'text-neutral-400 hover:text-white'}`}
                             >
                                 <Trophy className="w-3.5 h-3.5 text-emerald-400" /> Shortlisted ({stats.persistentShortlistedCount})
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShortlistStatusFilter('FINAL_RANKING');
+                                    setSortBy('FINAL_RANK');
+                                }}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${shortlistStatusFilter === 'FINAL_RANKING' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm' : 'text-neutral-400 hover:text-white'}`}
+                            >
+                                <Crown className="w-3.5 h-3.5 text-amber-400" /> Final Rankings ({stats.finalRankedCount})
                             </button>
                             <button
                                 onClick={() => setShortlistStatusFilter('NOT_SHORTLISTED')}
@@ -858,11 +1482,12 @@ export default function AdminDashboard() {
 
                         <select
                             value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value as 'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST')}
+                            onChange={(e) => setSortBy(e.target.value as 'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST' | 'FINAL_RANK')}
                             className="h-9 px-3 text-xs bg-neutral-900/80 border border-neutral-800 rounded-lg text-white"
                         >
-                            <option value="SCORE_DESC">Score (High to Low)</option>
-                            <option value="SCORE_ASC">Score (Low to High)</option>
+                            <option value="FINAL_RANK">Official Final Rank</option>
+                            <option value="SCORE_DESC">Round 1 Score (High to Low)</option>
+                            <option value="SCORE_ASC">Round 1 Score (Low to High)</option>
                             <option value="NEWEST">Newest First</option>
                         </select>
                     </div>
@@ -873,7 +1498,7 @@ export default function AdminDashboard() {
                     <CardHeader className="py-4 border-b border-neutral-800/60 flex flex-row items-center justify-between">
                         <div className="flex items-center gap-2">
                             <CardTitle className="text-lg font-bold">
-                                {shortlistStatusFilter === 'SHORTLISTED' ? '🏆 Round 2 Shortlisted Teams' : 'Ranked Submissions'}
+                                {shortlistStatusFilter === 'FINAL_RANKING' ? '👑 Official Final Composite Leaderboard' : shortlistStatusFilter === 'SHORTLISTED' ? '🏆 Round 2 Shortlisted Teams' : 'Ranked Submissions'}
                             </CardTitle>
                             <Badge variant="outline" className="text-xs font-medium text-neutral-400 border-neutral-800">
                                 Showing {filteredSubmissions.length} of {submissions.length} teams
@@ -903,25 +1528,47 @@ export default function AdminDashboard() {
                                         <TableHead className="w-14 text-center">Rank</TableHead>
                                         <TableHead>Team & Track</TableHead>
                                         <TableHead className="hidden md:table-cell">Problem Statement</TableHead>
-                                        <TableHead>Shortlist Status</TableHead>
-                                        <TableHead>Round 2 Codebase</TableHead>
-                                        <TableHead className="text-right">ATS Score</TableHead>
+                                        <TableHead>Status & Podium</TableHead>
+                                        <TableHead className="text-center">Pitch (R1)</TableHead>
+                                        <TableHead className="text-center">Code (R2)</TableHead>
+                                        <TableHead className="text-right">Final Score</TableHead>
                                         <TableHead className="text-right">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredSubmissions.map((sub, idx) => {
-                                        const score = sub.aiEvaluation?.totalScore;
+                                        const pitchScore = sub.aiEvaluation?.totalScore;
+                                        const codeScore = sub.githubEvaluation?.technicalScore;
                                         const isShortlisted = Boolean(sub.team?.isShortlisted);
-                                        const rankDisplay = isShortlisted && sub.team?.shortlistRank ? `#${sub.team.shortlistRank}` : idx + 1;
-                                        const isTop3 = isShortlisted && (sub.team?.shortlistRank ?? idx + 1) <= 3;
+                                        const finalRank = sub.finalRank ?? sub.team?.finalRank;
+                                        const finalScore = sub.finalScore ?? sub.team?.finalScore;
+                                        const isWinner = Boolean(sub.isWinner || sub.team?.isWinner);
+                                        const winnerPosition = sub.winnerPosition ?? sub.team?.winnerPosition ?? (isWinner ? finalRank : undefined);
+
+                                        const rankDisplay = finalRank ? `#${finalRank}` : isShortlisted && sub.team?.shortlistRank ? `#${sub.team.shortlistRank}` : idx + 1;
 
                                         return (
                                             <TableRow key={sub._id?.toString()} className="border-neutral-800/60 hover:bg-neutral-900/30 transition-colors">
                                                 <TableCell className="text-center font-bold text-xs text-neutral-400">
-                                                    {isTop3 ? (
-                                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-extrabold">
-                                                            {rankDisplay}
+                                                    {winnerPosition === 1 ? (
+                                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-500 text-black text-xs font-black shadow-md shadow-amber-500/30">
+                                                            🏆 1
+                                                        </span>
+                                                    ) : winnerPosition === 2 ? (
+                                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-300 text-black text-xs font-black">
+                                                            🥈 2
+                                                        </span>
+                                                    ) : winnerPosition === 3 ? (
+                                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-700 text-white text-xs font-black">
+                                                            🥉 3
+                                                        </span>
+                                                    ) : isWinner ? (
+                                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-xs font-bold">
+                                                            #{finalRank}
+                                                        </span>
+                                                    ) : finalRank ? (
+                                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-neutral-800 text-neutral-300 text-xs font-bold">
+                                                            #{finalRank}
                                                         </span>
                                                     ) : (
                                                         rankDisplay
@@ -955,9 +1602,13 @@ export default function AdminDashboard() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1 items-start">
-                                                        {isShortlisted ? (
+                                                        {isWinner ? (
+                                                            <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] px-2 py-0.5 whitespace-nowrap font-bold">
+                                                                {winnerPosition === 1 ? '🏆 1st Champion' : winnerPosition === 2 ? '🥈 2nd Place' : winnerPosition === 3 ? '🥉 3rd Place' : `🏅 Finalist #${finalRank}`}
+                                                            </Badge>
+                                                        ) : isShortlisted ? (
                                                             <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] px-2 py-0.5 whitespace-nowrap">
-                                                                🏆 Shortlisted {sub.team?.shortlistRank ? `(#${sub.team.shortlistRank})` : ''}
+                                                                Shortlisted {sub.team?.shortlistRank ? `(#${sub.team.shortlistRank})` : ''}
                                                             </Badge>
                                                         ) : sub.status === 'EVALUATED' ? (
                                                             <Badge variant="outline" className="text-neutral-500 border-neutral-800 text-[10px] px-2 py-0.5 whitespace-nowrap">
@@ -968,80 +1619,75 @@ export default function AdminDashboard() {
                                                                 {sub.status || 'Pending'}
                                                             </Badge>
                                                         )}
-                                                        {isShortlisted && sub.team?.shortlistedAt && (
+                                                        {finalRank && (
                                                             <span className="text-[9px] text-neutral-500">
-                                                                {new Date(sub.team.shortlistedAt).toLocaleDateString()}
+                                                                Official Rank #{finalRank}
                                                             </span>
                                                         )}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>
-                                                    {isShortlisted ? (
-                                                        <div className="flex flex-col gap-1 items-start">
-                                                            {sub.githubEvaluation?.status === 'EVALUATED' ? (
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] px-1.5 py-0 font-bold">
-                                                                        {sub.githubEvaluation.technicalScore}/100
-                                                                    </Badge>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="ghost"
-                                                                        onClick={() => setSelectedCodeReport(sub)}
-                                                                        className="h-6 px-1.5 text-[11px] text-indigo-400 hover:text-white"
-                                                                    >
-                                                                        <Eye className="w-3 h-3 mr-1" /> Audit
-                                                                    </Button>
-                                                                </div>
-                                                            ) : sub.githubEvaluation?.status === 'ANALYZING' ? (
-                                                                <Badge className="bg-indigo-900/40 text-indigo-300 border border-indigo-800 text-[10px] px-1.5 py-0">
-                                                                    <Loader2 className="w-2.5 h-2.5 animate-spin mr-1" /> Analyzing
-                                                                </Badge>
-                                                            ) : sub.githubEvaluation?.status === 'FAILED' ? (
-                                                                <div className="flex items-center gap-1">
-                                                                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                                                        Failed
-                                                                    </Badge>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="ghost"
-                                                                        disabled={retryingTeamId === sub.team?._id?.toString()}
-                                                                        onClick={() => sub.team?._id && handleRetryCodeAnalysis(sub.team._id.toString())}
-                                                                        className="h-5 px-1 text-[10px] text-amber-400 hover:text-white"
-                                                                    >
-                                                                        <RefreshCw className={`w-2.5 h-2.5 mr-0.5 ${retryingTeamId === sub.team?._id?.toString() ? 'animate-spin' : ''}`} /> Retry
-                                                                    </Button>
-                                                                </div>
-                                                            ) : (
-                                                                <Badge variant="outline" className="text-neutral-500 border-neutral-800 text-[10px] px-1.5 py-0">
-                                                                    Pending Repo
-                                                                </Badge>
-                                                            )}
-                                                            {(sub.githubEvaluation?.repoUrl || sub.team?.githubUrl) && (
-                                                                <a
-                                                                    href={sub.githubEvaluation?.repoUrl || sub.team.githubUrl}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-[10px] text-indigo-400/80 hover:text-indigo-300 flex items-center gap-1 max-w-[140px] truncate"
-                                                                >
-                                                                    <Github className="w-3 h-3 shrink-0" />
-                                                                    <span className="truncate">
-                                                                        {sub.githubEvaluation?.repoOwner ? `${sub.githubEvaluation.repoOwner}/${sub.githubEvaluation.repoName}` : 'repo'}
-                                                                    </span>
-                                                                </a>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-xs text-neutral-600">—</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-right font-bold text-lg">
-                                                    {score !== undefined ? (
-                                                        <span className={score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-primary' : 'text-amber-400'}>
-                                                            {score}
-                                                            <span className="text-xs text-neutral-500 font-normal">/100</span>
+                                                <TableCell className="text-center font-bold text-xs">
+                                                    {pitchScore !== undefined ? (
+                                                        <span className="text-white font-semibold">
+                                                            {pitchScore} <span className="text-[10px] text-neutral-500 font-normal">/100</span>
                                                         </span>
                                                     ) : (
-                                                        '—'
+                                                        <span className="text-neutral-500">—</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    {isShortlisted ? (
+                                                        sub.githubEvaluation?.status === 'EVALUATED' ? (
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                <span className="font-bold text-xs text-indigo-400">
+                                                                    {codeScore ?? 0}
+                                                                </span>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() => setSelectedCodeReport(sub)}
+                                                                    className="h-5 px-1 text-[10px] text-neutral-400 hover:text-white"
+                                                                >
+                                                                    <Eye className="w-3 h-3" />
+                                                                </Button>
+                                                            </div>
+                                                        ) : sub.githubEvaluation?.status === 'ANALYZING' ? (
+                                                            <Badge className="bg-indigo-900/40 text-indigo-300 border border-indigo-800 text-[10px] px-1 py-0">
+                                                                <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> Analyzing
+                                                            </Badge>
+                                                        ) : sub.githubEvaluation?.status === 'FAILED' ? (
+                                                            <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                                                                Failed
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className="text-neutral-500 border-neutral-800 text-[10px] px-1 py-0">
+                                                                Pending
+                                                            </Badge>
+                                                        )
+                                                    ) : (
+                                                        <span className="text-neutral-600 text-xs">—</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {finalScore !== undefined ? (
+                                                        <div className="flex flex-col items-end">
+                                                            <div className="flex items-baseline gap-0.5">
+                                                                <span className="font-extrabold text-amber-300 text-lg">{finalScore}</span>
+                                                                <span className="text-[10px] text-neutral-500 font-normal">/100</span>
+                                                            </div>
+                                                            {sub.finalScoreBreakdown && (
+                                                                <span className="text-[9px] text-neutral-400 font-mono">
+                                                                    {sub.finalScoreBreakdown.pitchContribution} + {sub.finalScoreBreakdown.githubContribution}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : pitchScore !== undefined ? (
+                                                        <div className="flex flex-col items-end">
+                                                            <span className="font-bold text-sm text-neutral-400">{pitchScore}</span>
+                                                            <span className="text-[9px] text-neutral-500 font-normal">Pitch Only</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-neutral-500 text-xs">—</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
@@ -1239,6 +1885,57 @@ export default function AdminDashboard() {
                                         )}
                                     </Button>
                                 )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Publish Official Final Results Confirmation Modal */}
+                {showPublishModal && (
+                    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-neutral-900 border border-amber-500/40 rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-5 animate-in fade-in">
+                            <div className="flex items-center gap-3 border-b border-neutral-800 pb-4">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                                    <Crown className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-white">Publish Official Final Results</h3>
+                                    <p className="text-xs text-neutral-400">Declare official winners and unlock leaderboard.</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 text-xs text-neutral-300">
+                                <p>
+                                    You are about to declare the <strong className="text-amber-400">Top {winnerCount} Winners</strong> and publish the official final leaderboard for <strong className="text-white">{activeHackathon?.name || 'this hackathon'}</strong>.
+                                </p>
+                                <div className="bg-neutral-950 p-3 rounded-lg border border-neutral-800 space-y-1">
+                                    <span className="font-semibold text-white block">Official Actions:</span>
+                                    <ul className="space-y-1 text-neutral-400 list-disc pl-4">
+                                        <li>The Top {winnerCount} ranked teams will be permanently assigned official winner podium badges.</li>
+                                        <li>All participant dashboards will immediately display official final rank and podium status.</li>
+                                        <li>Participant privacy masking will be turned off.</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-2 border-t border-neutral-800">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowPublishModal(false)}
+                                    className="border-neutral-800 text-neutral-300"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    disabled={isPublishingFinal}
+                                    onClick={handlePublishFinalResults}
+                                    className="bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs shadow-md shadow-amber-500/20"
+                                >
+                                    {isPublishingFinal ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Crown className="w-3.5 h-3.5 mr-1.5" />}
+                                    Confirm & Publish Results
+                                </Button>
                             </div>
                         </div>
                     </div>

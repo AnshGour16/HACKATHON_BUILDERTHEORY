@@ -29,6 +29,14 @@ export interface IHackathon extends Document {
     shortlistingStatus?: 'NOT_SHORTLISTED' | 'SHORTLISTED';
     shortlistedAt?: Date;
     shortlistCount?: number;
+    pitchWeight?: number;
+    githubWeight?: number;
+    isFinalResultsPublished?: boolean;
+    finalResultsPublishedAt?: Date;
+    finalResultsPublishedBy?: string;
+    winnerCount?: number;
+    finalRankingRecalculatedAt?: Date;
+    rankingHistory?: { calculatedAt: Date; pitchWeight: number; githubWeight: number; topTeamName?: string }[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -60,7 +68,20 @@ const HackathonSchema: Schema = new Schema({
     }],
     shortlistingStatus: { type: String, enum: ['NOT_SHORTLISTED', 'SHORTLISTED'], default: 'NOT_SHORTLISTED' },
     shortlistedAt: { type: Date },
-    shortlistCount: { type: Number, default: 0 }
+    shortlistCount: { type: Number, default: 0 },
+    pitchWeight: { type: Number, default: 40 },
+    githubWeight: { type: Number, default: 60 },
+    isFinalResultsPublished: { type: Boolean, default: false },
+    finalResultsPublishedAt: { type: Date },
+    finalResultsPublishedBy: { type: String },
+    winnerCount: { type: Number, default: 3 },
+    finalRankingRecalculatedAt: { type: Date },
+    rankingHistory: [{
+        calculatedAt: { type: Date, default: Date.now },
+        pitchWeight: { type: Number },
+        githubWeight: { type: Number },
+        topTeamName: { type: String }
+    }]
 }, { timestamps: true });
 
 export default mongoose.models.Hackathon || mongoose.model<IHackathon>('Hackathon', HackathonSchema);

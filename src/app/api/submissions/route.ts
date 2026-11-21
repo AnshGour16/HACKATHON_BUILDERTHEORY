@@ -22,8 +22,8 @@ export async function GET(req: NextRequest) {
 
         // Fetch submissions and populate the team and hackathon info
         const submissions = await Submission.find(filter)
-            .populate('team', 'name projectTitle problemStatement track githubUrl githubStatus githubScore hackathon isShortlisted shortlistRank shortlistedAt')
-            .populate('hackathon', 'name slug theme shortlistingStatus shortlistLimit shortlistingMode shortlistedAt shortlistCount')
+            .populate('team', 'name projectTitle problemStatement track githubUrl githubStatus githubScore hackathon isShortlisted shortlistRank shortlistedAt finalScore finalRank isWinner winnerPosition')
+            .populate('hackathon', 'name slug theme shortlistingStatus shortlistLimit shortlistingMode shortlistedAt shortlistCount pitchWeight githubWeight isFinalResultsPublished winnerCount finalResultsPublishedAt')
             .sort({ createdAt: -1 })
             .lean(); // Faster to use lean for read-only
 

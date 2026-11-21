@@ -64,6 +64,15 @@ export interface IAIEvaluation {
     }
 }
 
+export interface IFinalScoreBreakdown {
+    pitchScore: number;
+    pitchWeight: number;
+    githubScore: number;
+    githubWeight: number;
+    pitchContribution?: number;
+    githubContribution?: number;
+}
+
 export interface ISubmission extends Document {
     team: mongoose.Types.ObjectId;
     hackathon?: mongoose.Types.ObjectId;
@@ -78,6 +87,11 @@ export interface ISubmission extends Document {
     status: 'PENDING' | 'AI_PROCESSING' | 'EVALUATED' | 'FAILED';
     aiEvaluation?: IAIEvaluation;
     githubEvaluation?: IGitHubEvaluation;
+    finalScore?: number;
+    finalScoreBreakdown?: IFinalScoreBreakdown;
+    finalRank?: number;
+    isWinner?: boolean;
+    winnerPosition?: number;
     judgeFinalScore?: number;
     createdAt: Date;
     updatedAt: Date;
@@ -159,6 +173,18 @@ const SubmissionSchema: Schema = new Schema({
         summary: { type: String },
         error: { type: String }
     },
+    finalScore: { type: Number },
+    finalScoreBreakdown: {
+        pitchScore: { type: Number },
+        pitchWeight: { type: Number },
+        githubScore: { type: Number },
+        githubWeight: { type: Number },
+        pitchContribution: { type: Number },
+        githubContribution: { type: Number }
+    },
+    finalRank: { type: Number },
+    isWinner: { type: Boolean, default: false },
+    winnerPosition: { type: Number },
     judgeFinalScore: { type: Number }
 }, { timestamps: true });
 

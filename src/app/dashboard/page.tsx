@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import {
     Brain, Target, AlertTriangle, CheckCircle2, BarChart3,
     Github, Loader2, UploadCloud, FileText, Trophy, Users,
-    ExternalLink, Code2, GitBranch, ShieldCheck, Activity, Layers
+    ExternalLink, Code2, GitBranch, ShieldCheck, Activity, Layers,
+    Crown, Award
 } from 'lucide-react';
 import ScoreRadarChart from '@/components/ScoreRadarChart';
 
@@ -37,6 +38,10 @@ interface ITeamData {
     isShortlisted: boolean;
     shortlistRank?: number;
     shortlistedAt?: string | Date;
+    finalScore?: number;
+    finalRank?: number;
+    isWinner?: boolean;
+    winnerPosition?: number;
     hackathon?: {
         name: string;
         theme: string;
@@ -45,6 +50,11 @@ interface ITeamData {
         codeSubmissionDeadline?: string | Date;
         shortlistingStatus?: string;
         shortlistCount?: number;
+        isFinalResultsPublished?: boolean;
+        finalResultsPublishedAt?: string | Date;
+        pitchWeight?: number;
+        githubWeight?: number;
+        winnerCount?: number;
     };
 }
 
@@ -111,6 +121,18 @@ interface ISubmissionData {
     slideCount?: number;
     hasVisualAssets?: boolean;
     extractionError?: string;
+    finalScore?: number;
+    finalRank?: number;
+    isWinner?: boolean;
+    winnerPosition?: number;
+    finalScoreBreakdown?: {
+        pitchScore: number;
+        githubScore: number;
+        pitchWeight: number;
+        githubWeight: number;
+        pitchContribution: number;
+        githubContribution: number;
+    };
     aiEvaluation?: IAI;
     githubEvaluation?: IGitHubEvaluationData;
 }
@@ -285,7 +307,18 @@ export default function ParticipantDashboard() {
                             <Badge variant="outline" className="border-indigo-500/50 text-indigo-300">
                                 {team.track} Track
                             </Badge>
-                            {team.isShortlisted ? (
+                            {team.hackathon?.isFinalResultsPublished ? (
+                                team.isWinner ? (
+                                    <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
+                                        <Crown className="w-3.5 h-3.5 mr-1 text-amber-400" />
+                                        {team.winnerPosition === 1 ? '🏆 Grand Champion (1st Place)' : team.winnerPosition === 2 ? '🥈 2nd Place Winner' : team.winnerPosition === 3 ? '🥉 3rd Place Winner' : `🏅 Official Finalist (Rank #${team.finalRank})`}
+                                    </Badge>
+                                ) : team.finalRank ? (
+                                    <Badge className="bg-neutral-800 text-neutral-300 border border-neutral-700">
+                                        Official Final Rank #{team.finalRank}
+                                    </Badge>
+                                ) : null
+                            ) : team.isShortlisted ? (
                                 <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
                                     🏆 Shortlisted for Round 2 (Rank #{team.shortlistRank || 1})
                                 </Badge>
@@ -313,7 +346,22 @@ export default function ParticipantDashboard() {
                         )}
                     </div>
 
-                    {ai?.totalScore !== undefined && (
+                    {team.hackathon?.isFinalResultsPublished && (team.finalScore !== undefined || submission?.finalScore !== undefined) ? (
+                        <div className="flex flex-col items-center bg-amber-500/10 border border-amber-500/30 px-6 py-4 rounded-xl">
+                            <span className="text-[11px] text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                                <Crown className="w-3.5 h-3.5" /> Final Composite Score
+                            </span>
+                            <span className="text-4xl font-extrabold text-white mt-1">
+                                {team.finalScore ?? submission?.finalScore}
+                                <span className="text-xs text-neutral-500 font-normal"> / 100</span>
+                            </span>
+                            {submission?.finalScoreBreakdown && (
+                                <span className="text-[10px] text-amber-300/80 font-mono mt-1">
+                                    Pitch: {submission.finalScoreBreakdown.pitchContribution} • Code: {submission.finalScoreBreakdown.githubContribution}
+                                </span>
+                            )}
+                        </div>
+                    ) : ai?.totalScore !== undefined ? (
                         <div className="flex flex-col items-center bg-primary/10 border border-primary/20 px-6 py-4 rounded-xl">
                             <span className="text-xs text-primary font-semibold uppercase">ATS Score</span>
                             <span className="text-4xl font-extrabold text-white mt-1">
@@ -321,11 +369,57 @@ export default function ParticipantDashboard() {
                                 <span className="text-xs text-neutral-500 font-normal"> / 100</span>
                             </span>
                         </div>
-                    )}
+                    ) : null}
                 </div>
 
-                {/* Shortlist Qualification Alert Banner */}
-                {team.isShortlisted ? (
+                {/* Final Results & Winner Announcement Banner */}
+                {team.hackathon?.isFinalResultsPublished ? (
+                    team.isWinner ? (
+                        <div className="bg-gradient-to-r from-amber-950/40 via-amber-900/30 to-amber-950/40 border border-amber-500/50 p-5 rounded-2xl flex items-center gap-4 text-amber-300 text-sm shadow-xl shadow-amber-500/10 animate-in fade-in">
+                            <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                                <Crown className="w-7 h-7" />
+                            </div>
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-extrabold text-white text-lg">
+                                        🎉 Congratulations! {team.name} is a Hackathon Winner!
+                                    </h3>
+                                    <Badge className="bg-amber-500 text-black font-black text-xs px-2 py-0.5">
+                                        {team.winnerPosition === 1 ? '🏆 1ST PLACE CHAMPION' : team.winnerPosition === 2 ? '🥈 2ND PLACE WINNER' : team.winnerPosition === 3 ? '🥉 3RD PLACE WINNER' : '🏅 OFFICIAL FINALIST'}
+                                    </Badge>
+                                </div>
+                                <p className="text-neutral-300 text-xs">
+                                    Official Final Rank: <strong className="text-amber-400">#{team.finalRank}</strong> • Final Composite Score: <strong className="text-white">{team.finalScore ?? submission?.finalScore} / 100</strong>
+                                    {submission?.finalScoreBreakdown && (
+                                        <span className="text-neutral-400 ml-1">
+                                            (Pitch Deck: {submission.finalScoreBreakdown.pitchContribution} pts + GitHub Codebase: {submission.finalScoreBreakdown.githubContribution} pts)
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+                    ) : team.finalRank ? (
+                        <div className="bg-neutral-900/70 border border-neutral-800 p-4 rounded-xl flex items-center gap-3 text-neutral-300 text-sm animate-in fade-in">
+                            <Award className="w-6 h-6 text-indigo-400 shrink-0" />
+                            <div>
+                                <span className="font-bold text-white text-base">Official Final Leaderboard Published</span>
+                                <p className="text-neutral-400 text-xs mt-0.5">
+                                    Official Final Rank: <strong className="text-white">#{team.finalRank}</strong> • Final Composite Score: <strong className="text-amber-400">{team.finalScore ?? submission?.finalScore} / 100</strong>.
+                                </p>
+                            </div>
+                        </div>
+                    ) : null
+                ) : team.isShortlisted && submission?.githubEvaluation?.status === 'EVALUATED' ? (
+                    <div className="bg-indigo-950/30 border border-indigo-500/30 p-4 rounded-xl flex items-center gap-3 text-indigo-300 text-sm animate-in fade-in">
+                        <CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0" />
+                        <div>
+                            <span className="font-semibold text-white">Round 2 Codebase Evaluated Successfully</span>
+                            <p className="text-xs text-neutral-400 mt-0.5">
+                                Technical Score: <strong className="text-indigo-300">{submission.githubEvaluation.technicalScore} / 100</strong>. Final composite evaluations and podium selections are currently under review by judges.
+                            </p>
+                        </div>
+                    </div>
+                ) : team.isShortlisted ? (
                     <div className="bg-emerald-950/40 border border-emerald-500/40 p-4 rounded-xl flex items-center gap-3 text-emerald-300 text-sm animate-in fade-in">
                         <Trophy className="w-6 h-6 text-emerald-400 shrink-0" />
                         <div>

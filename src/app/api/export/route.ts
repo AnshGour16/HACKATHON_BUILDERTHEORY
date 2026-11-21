@@ -7,6 +7,11 @@ import '@/models/Hackathon';
 export const dynamic = 'force-dynamic';
 
 interface IExportSubmission {
+    _id?: string;
+    finalRank?: number;
+    finalScore?: number;
+    isWinner?: boolean;
+    winnerPosition?: number;
     team?: {
         name?: string;
         track?: string;
@@ -16,9 +21,15 @@ interface IExportSubmission {
         isShortlisted?: boolean;
         shortlistRank?: number;
         shortlistedAt?: string | Date;
+        finalScore?: number;
+        finalRank?: number;
+        isWinner?: boolean;
+        winnerPosition?: number;
     };
     hackathon?: {
         name?: string;
+        pitchWeight?: number;
+        githubWeight?: number;
     };
     status?: string;
     aiEvaluation?: {
@@ -27,6 +38,11 @@ interface IExportSubmission {
         weaknesses?: string[];
         missingSections?: string[];
         plagiarismFlag?: boolean;
+    };
+    githubEvaluation?: {
+        technicalScore?: number;
+        status?: string;
+        repoUrl?: string;
     };
 }
 
@@ -38,6 +54,7 @@ export async function GET(req: NextRequest) {
         const hackathonId = searchParams.get('hackathonId');
         const limitParam = searchParams.get('limit');
         const shortlistedOnly = searchParams.get('shortlistedOnly') === 'true';
+        const finalRanking = searchParams.get('finalRanking') === 'true';
         const trackParam = searchParams.get('track');
 
         const filter: Record<string, unknown> = {};
@@ -46,9 +63,9 @@ export async function GET(req: NextRequest) {
         }
 
         let query = Submission.find(filter)
-            .populate('team', 'name projectTitle problemStatement track members isShortlisted shortlistRank shortlistedAt')
-            .populate('hackathon', 'name')
-            .sort({ 'aiEvaluation.totalScore': -1, createdAt: -1 });
+            .populate('team', 'name projectTitle problemStatement track members isShortlisted shortlistRank shortlistedAt finalScore finalRank isWinner winnerPosition')
+            .populate('hackathon', 'name pitchWeight githubWeight')
+            .sort(finalRanking ? { finalRank: 1, finalScore: -1, 'aiEvaluation.totalScore': -1 } : { 'aiEvaluation.totalScore': -1, createdAt: -1 });
 
         if (limitParam) {
             const limit = parseInt(limitParam, 10);
@@ -60,15 +77,30 @@ export async function GET(req: NextRequest) {
         let submissions = await query.lean() as unknown as IExportSubmission[];
 
         // Apply in-memory team filters if needed
-        if (shortlistedOnly) {
+        if (finalRanking) {
+            submissions = submissions.filter(s => s.team?.isShortlisted && (s.finalRank !== undefined || s.finalScore !== undefined));
+            submissions.sort((a, b) => (a.finalRank || 9999) - (b.finalRank || 9999));
+        } else if (shortlistedOnly) {
             submissions = submissions.filter(s => s.team?.isShortlisted);
         }
+
         if (trackParam && trackParam !== 'ALL') {
             submissions = submissions.filter(s => s.team?.track?.toLowerCase() === trackParam.toLowerCase());
         }
 
         // CSV Header
-        const headers = [
+        const headers = finalRanking ? [
+            'Final Rank',
+            'Hackathon',
+            'Team Name',
+            'Project Title',
+            'Track',
+            'Pitch Deck Score (R1)',
+            'GitHub Score (R2)',
+            'Final Composite Score',
+            'Winner Status',
+            'Problem Statement'
+        ] : [
             'Rank',
             'Hackathon',
             'Team Name',
@@ -89,9 +121,30 @@ export async function GET(req: NextRequest) {
             const team = sub.team || {};
             const hackathon = sub.hackathon || {};
             const evalData = sub.aiEvaluation || {};
+            const gitData = sub.githubEvaluation || {};
             const isShortlisted = Boolean(team.isShortlisted);
             const shortlistRank = team.shortlistRank ? `#${team.shortlistRank}` : '-';
             const qualifiedAt = team.shortlistedAt ? new Date(team.shortlistedAt).toLocaleDateString() : '-';
+
+            if (finalRanking) {
+                const finalRankDisplay = sub.finalRank || team.finalRank || idx + 1;
+                const winnerDisplay = team.isWinner
+                    ? `WINNER (Position #${team.winnerPosition || 1})`
+                    : (finalRankDisplay <= 3 ? `Top ${finalRankDisplay} Finalist` : 'Finalist');
+
+                return [
+                    finalRankDisplay,
+                    hackathon.name || 'Global',
+                    team.name || 'Unknown',
+                    (team.projectTitle || '').replace(/"/g, '""'),
+                    team.track || 'General',
+                    evalData.totalScore !== undefined ? evalData.totalScore : 'N/A',
+                    gitData.technicalScore !== undefined ? gitData.technicalScore : 'N/A',
+                    sub.finalScore !== undefined ? sub.finalScore : (team.finalScore !== undefined ? team.finalScore : 'N/A'),
+                    winnerDisplay,
+                    (team.problemStatement || '').replace(/"/g, '""')
+                ].map(String).map(item => `"${item}"`).join(',');
+            }
 
             return [
                 idx + 1,
@@ -111,7 +164,9 @@ export async function GET(req: NextRequest) {
         });
 
         const csvContent = [headers.map(h => `"${h}"`).join(','), ...rows].join('\n');
-        const filename = shortlistedOnly ? 'shortlisted_teams.csv' : 'hackathon_leaderboard.csv';
+        const filename = finalRanking
+            ? 'hackathon_final_leaderboard.csv'
+            : (shortlistedOnly ? 'shortlisted_teams.csv' : 'hackathon_leaderboard.csv');
 
         return new NextResponse(csvContent, {
             status: 200,
