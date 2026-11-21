@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
     Brain, Target, AlertTriangle, CheckCircle2, BarChart3,
-    Github, Loader2, UploadCloud, FileText, Trophy, Users
+    Github, Loader2, UploadCloud, FileText, Trophy, Users,
+    ExternalLink, Code2, GitBranch, ShieldCheck, Activity, Layers
 } from 'lucide-react';
 import ScoreRadarChart from '@/components/ScoreRadarChart';
 
@@ -31,6 +32,8 @@ interface ITeamData {
     leaderPhone?: string;
     members: ITeamMember[];
     githubUrl?: string;
+    githubStatus?: 'NOT_SUBMITTED' | 'ANALYZING' | 'EVALUATED' | 'FAILED';
+    githubScore?: number;
     isShortlisted: boolean;
     shortlistRank?: number;
     shortlistedAt?: string | Date;
@@ -39,9 +42,48 @@ interface ITeamData {
         theme: string;
         description: string;
         isCodeSubmissionOpen: boolean;
+        codeSubmissionDeadline?: string | Date;
         shortlistingStatus?: string;
         shortlistCount?: number;
     };
+}
+
+interface IGitHubEvaluationData {
+    repoUrl?: string;
+    repoOwner?: string;
+    repoName?: string;
+    defaultBranch?: string;
+    primaryLanguage?: string;
+    stars?: number;
+    forks?: number;
+    openIssues?: number;
+    submittedAt?: string | Date;
+    analyzedAt?: string | Date;
+    status: 'NOT_SUBMITTED' | 'ANALYZING' | 'EVALUATED' | 'FAILED';
+    technicalScore?: number;
+    breakdown?: {
+        codeQuality: number;
+        technicalImplementation: number;
+        architecture: number;
+        developmentActivity: number;
+        documentationAndTesting: number;
+    };
+    criteriaFeedback?: {
+        codeQuality: string;
+        technicalImplementation: string;
+        architecture: string;
+        developmentActivity: string;
+        documentationAndTesting: string;
+    };
+    architectureAssessment?: string;
+    codeQualityAssessment?: string;
+    documentationAssessment?: string;
+    testingAssessment?: string;
+    strengths?: string[];
+    weaknesses?: string[];
+    missingComponents?: string[];
+    summary?: string;
+    error?: string;
 }
 
 interface IAI {
@@ -70,6 +112,7 @@ interface ISubmissionData {
     hasVisualAssets?: boolean;
     extractionError?: string;
     aiEvaluation?: IAI;
+    githubEvaluation?: IGitHubEvaluationData;
 }
 
 export default function ParticipantDashboard() {
@@ -147,9 +190,12 @@ export default function ParticipantDashboard() {
         }
     };
 
-    const handleCodeSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!team || !githubUrl) return;
+    const [showEditRepo, setShowEditRepo] = useState(false);
+
+    const handleCodeSubmit = async (e?: React.FormEvent, isRetry = false) => {
+        if (e) e.preventDefault();
+        const urlToSend = isRetry ? (submission?.githubEvaluation?.repoUrl || team?.githubUrl || githubUrl) : githubUrl;
+        if (!team || (!urlToSend && !isRetry)) return;
 
         setIsSubmittingCode(true);
         setCodeSubmitStatus({ type: 'idle', message: '' });
@@ -158,16 +204,20 @@ export default function ParticipantDashboard() {
             const res = await fetch('/api/submit-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ teamId: team._id, githubUrl })
+                body: JSON.stringify({
+                    githubUrl: urlToSend,
+                    retry: isRetry
+                })
             });
             const data = await res.json();
 
             if (res.ok && data.success) {
-                setCodeSubmitStatus({ type: 'success', message: 'Successfully analyzed and linked codebase!' });
+                setCodeSubmitStatus({ type: 'success', message: 'Successfully analyzed and evaluated repository!' });
                 setGithubUrl('');
+                setShowEditRepo(false);
                 fetchDashboardData();
             } else {
-                setCodeSubmitStatus({ type: 'error', message: data.error || 'Failed to submit code.' });
+                setCodeSubmitStatus({ type: 'error', message: data.error || 'Failed to analyze repository.' });
             }
         } catch {
             setCodeSubmitStatus({ type: 'error', message: 'Network error. Please try again.' });
@@ -562,50 +612,310 @@ export default function ParticipantDashboard() {
                     </>
                 )}
 
-                {/* Phase 2 Code Submission Card (If unlocked) */}
-                {isCodePhaseOpen && submission && (
-                    <Card className="border-indigo-500/40 bg-indigo-950/20 backdrop-blur-md">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-indigo-400">
-                                <Github className="w-5 h-5" /> Phase 2: GitHub Repository Submission
-                            </CardTitle>
-                            <CardDescription className="text-indigo-200/70">
-                                The code submission portal is unlocked. Submit your public GitHub repository for technical evaluation.
+                {/* ======================================================== */}
+                {/* ROUND 2: SECURE GITHUB REPOSITORY SUBMISSION & EVALUATION */}
+                {/* ======================================================== */}
+                {!team.isShortlisted ? (
+                    <Card className="border-neutral-800 bg-neutral-900/30 backdrop-blur-md">
+                        <CardHeader className="py-4">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="flex items-center gap-2 text-neutral-400 text-base">
+                                    <Github className="w-5 h-5 text-neutral-500" />
+                                    Round 2: GitHub Codebase Evaluation
+                                </CardTitle>
+                                <Badge variant="outline" className="border-neutral-800 text-neutral-500 text-xs">
+                                    Round 1 Shortlist Only
+                                </Badge>
+                            </div>
+                            <CardDescription className="text-xs text-neutral-500 mt-1">
+                                Technical codebase analysis is exclusively reserved for teams that qualify from the Round 1 pitch deck screening.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            {team.githubUrl ? (
-                                <div className="p-4 bg-neutral-900/80 rounded-xl border border-neutral-800 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-xs font-semibold text-neutral-400 uppercase">Linked Codebase</span>
-                                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Verified</Badge>
-                                    </div>
-                                    <a href={team.githubUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-400 hover:underline block truncate">
-                                        {team.githubUrl}
-                                    </a>
-                                    {ai?.githubAnalysis && (
-                                        <div className="pt-2 border-t border-neutral-800 text-xs text-neutral-300">
-                                            Complexity Score: <span className="text-primary font-bold">{ai.githubAnalysis.technicalComplexity}/100</span>
-                                        </div>
+                    </Card>
+                ) : !isCodePhaseOpen ? (
+                    <Card className="border-amber-500/30 bg-amber-950/10 backdrop-blur-md">
+                        <CardHeader className="py-5">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2 text-amber-300 text-lg font-bold">
+                                        <Github className="w-5 h-5 text-amber-400" />
+                                        Round 2: GitHub Repository Submission
+                                    </CardTitle>
+                                    <CardDescription className="text-amber-200/70 text-xs mt-1">
+                                        Your team is shortlisted for Round 2! The code submission portal is currently locked by the organizers and will open shortly.
+                                    </CardDescription>
+                                </div>
+                                <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs py-1 px-3 w-fit">
+                                    Portal Locked
+                                </Badge>
+                            </div>
+                        </CardHeader>
+                    </Card>
+                ) : isSubmittingCode || submission?.githubEvaluation?.status === 'ANALYZING' ? (
+                    <Card className="border-indigo-500/40 bg-indigo-950/30 backdrop-blur-md animate-pulse">
+                        <CardHeader className="text-center py-8">
+                            <Loader2 className="w-10 h-10 animate-spin text-indigo-400 mx-auto mb-3" />
+                            <CardTitle className="text-xl text-white font-bold">
+                                AI Codebase Analysis In Progress
+                            </CardTitle>
+                            <CardDescription className="text-neutral-400 text-sm max-w-md mx-auto">
+                                Gathering repository tree, inspecting dependencies, auditing source code, and analyzing development activity with Gemini...
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                ) : submission?.githubEvaluation?.status === 'EVALUATED' && !showEditRepo ? (
+                    <Card className="border-indigo-500/30 bg-neutral-900/50 backdrop-blur-md shadow-xl space-y-6 p-6">
+                        {/* Header Profile */}
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-neutral-800 pb-5">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-semibold">
+                                        <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Codebase Evaluated & Verified
+                                    </Badge>
+                                    {submission.githubEvaluation.primaryLanguage && (
+                                        <Badge variant="outline" className="border-neutral-700 text-neutral-300 text-xs">
+                                            {submission.githubEvaluation.primaryLanguage}
+                                        </Badge>
+                                    )}
+                                    {submission.githubEvaluation.defaultBranch && (
+                                        <span className="text-[11px] text-neutral-500 flex items-center gap-1">
+                                            <GitBranch className="w-3 h-3" /> {submission.githubEvaluation.defaultBranch}
+                                        </span>
                                     )}
                                 </div>
-                            ) : (
-                                <form onSubmit={handleCodeSubmit} className="flex flex-col sm:flex-row gap-3">
+                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <Github className="w-5 h-5 text-indigo-400" />
+                                    <a
+                                        href={submission.githubEvaluation.repoUrl || team.githubUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="hover:text-indigo-400 hover:underline flex items-center gap-1.5"
+                                    >
+                                        {submission.githubEvaluation.repoOwner ? `${submission.githubEvaluation.repoOwner}/${submission.githubEvaluation.repoName}` : (team.githubUrl || 'Linked Repository')}
+                                        <ExternalLink className="w-4 h-4 opacity-70" />
+                                    </a>
+                                </h3>
+                                <p className="text-xs text-neutral-500 mt-1">
+                                    Analyzed on {submission.githubEvaluation.analyzedAt ? new Date(submission.githubEvaluation.analyzedAt).toLocaleString() : 'Round 2'}
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <div className="flex flex-col items-center bg-indigo-950/40 border border-indigo-500/40 px-5 py-3 rounded-xl">
+                                    <span className="text-[10px] text-indigo-300 font-semibold uppercase tracking-wider">Technical Score</span>
+                                    <span className="text-3xl font-extrabold text-white mt-0.5">
+                                        {submission.githubEvaluation.technicalScore ?? 0}
+                                        <span className="text-xs text-neutral-500 font-normal"> / 100</span>
+                                    </span>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowEditRepo(true)}
+                                    className="border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800 text-xs"
+                                >
+                                    Update Repo
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* 5-Part Rubric Breakdown */}
+                        {submission.githubEvaluation.breakdown && (
+                            <div>
+                                <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                    <Target className="w-4 h-4 text-indigo-400" /> Technical Rubric Breakdown
+                                </h4>
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                    <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
+                                        <span className="text-[11px] text-neutral-400 block">Code Quality</span>
+                                        <span className="text-lg font-bold text-white mt-0.5 block">
+                                            {submission.githubEvaluation.breakdown.codeQuality} <span className="text-xs text-neutral-500 font-normal">/ 25</span>
+                                        </span>
+                                    </div>
+                                    <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
+                                        <span className="text-[11px] text-neutral-400 block">Implementation</span>
+                                        <span className="text-lg font-bold text-white mt-0.5 block">
+                                            {submission.githubEvaluation.breakdown.technicalImplementation} <span className="text-xs text-neutral-500 font-normal">/ 25</span>
+                                        </span>
+                                    </div>
+                                    <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
+                                        <span className="text-[11px] text-neutral-400 block">Architecture</span>
+                                        <span className="text-lg font-bold text-white mt-0.5 block">
+                                            {submission.githubEvaluation.breakdown.architecture} <span className="text-xs text-neutral-500 font-normal">/ 20</span>
+                                        </span>
+                                    </div>
+                                    <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
+                                        <span className="text-[11px] text-neutral-400 block">Commit Activity</span>
+                                        <span className="text-lg font-bold text-white mt-0.5 block">
+                                            {submission.githubEvaluation.breakdown.developmentActivity} <span className="text-xs text-neutral-500 font-normal">/ 15</span>
+                                        </span>
+                                    </div>
+                                    <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
+                                        <span className="text-[11px] text-neutral-400 block">Testing & Docs</span>
+                                        <span className="text-lg font-bold text-white mt-0.5 block">
+                                            {submission.githubEvaluation.breakdown.documentationAndTesting} <span className="text-xs text-neutral-500 font-normal">/ 15</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Executive Summary */}
+                        {submission.githubEvaluation.summary && (
+                            <div className="bg-neutral-950/50 border border-neutral-800/80 p-4 rounded-xl">
+                                <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                    <Brain className="w-4 h-4 text-indigo-400" /> Technical Assessment Summary
+                                </h4>
+                                <p className="text-sm text-neutral-300 leading-relaxed">
+                                    {submission.githubEvaluation.summary}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Detailed Assessments */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {submission.githubEvaluation.architectureAssessment && (
+                                <div className="bg-neutral-950/40 border border-neutral-800 p-4 rounded-xl space-y-1">
+                                    <h5 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
+                                        <Layers className="w-3.5 h-3.5" /> Architecture & Structure
+                                    </h5>
+                                    <p className="text-xs text-neutral-300 leading-relaxed">
+                                        {submission.githubEvaluation.architectureAssessment}
+                                    </p>
+                                </div>
+                            )}
+
+                            {submission.githubEvaluation.codeQualityAssessment && (
+                                <div className="bg-neutral-950/40 border border-neutral-800 p-4 rounded-xl space-y-1">
+                                    <h5 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
+                                        <Code2 className="w-3.5 h-3.5" /> Code Quality & Hygiene
+                                    </h5>
+                                    <p className="text-xs text-neutral-300 leading-relaxed">
+                                        {submission.githubEvaluation.codeQualityAssessment}
+                                    </p>
+                                </div>
+                            )}
+
+                            {submission.githubEvaluation.testingAssessment && (
+                                <div className="bg-neutral-950/40 border border-neutral-800 p-4 rounded-xl space-y-1">
+                                    <h5 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
+                                        <Activity className="w-3.5 h-3.5" /> Automated Testing Evidence
+                                    </h5>
+                                    <p className="text-xs text-neutral-300 leading-relaxed">
+                                        {submission.githubEvaluation.testingAssessment}
+                                    </p>
+                                </div>
+                            )}
+
+                            {submission.githubEvaluation.documentationAssessment && (
+                                <div className="bg-neutral-950/40 border border-neutral-800 p-4 rounded-xl space-y-1">
+                                    <h5 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
+                                        <FileText className="w-3.5 h-3.5" /> Documentation & Setup
+                                    </h5>
+                                    <p className="text-xs text-neutral-300 leading-relaxed">
+                                        {submission.githubEvaluation.documentationAssessment}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Strengths & Weaknesses */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {submission.githubEvaluation.strengths && submission.githubEvaluation.strengths.length > 0 && (
+                                <div className="border border-emerald-500/20 bg-emerald-950/10 p-4 rounded-xl space-y-2">
+                                    <h5 className="text-xs font-bold text-emerald-400 uppercase flex items-center gap-1.5">
+                                        <CheckCircle2 className="w-4 h-4" /> Technical Strengths
+                                    </h5>
+                                    <ul className="space-y-1.5">
+                                        {submission.githubEvaluation.strengths.map((str, i) => (
+                                            <li key={i} className="text-xs text-neutral-300 flex items-start gap-2">
+                                                <span className="text-emerald-400">•</span> {str}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {submission.githubEvaluation.weaknesses && submission.githubEvaluation.weaknesses.length > 0 && (
+                                <div className="border border-red-500/20 bg-red-950/10 p-4 rounded-xl space-y-2">
+                                    <h5 className="text-xs font-bold text-red-400 uppercase flex items-center gap-1.5">
+                                        <AlertTriangle className="w-4 h-4" /> Technical Weaknesses & Gaps
+                                    </h5>
+                                    <ul className="space-y-1.5">
+                                        {submission.githubEvaluation.weaknesses.map((w, i) => (
+                                            <li key={i} className="text-xs text-neutral-300 flex items-start gap-2">
+                                                <span className="text-red-400">•</span> {w}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+                ) : (
+                    <Card className="border-indigo-500/40 bg-indigo-950/20 backdrop-blur-md">
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="flex items-center gap-2 text-indigo-400">
+                                    <Github className="w-5 h-5" /> Round 2: GitHub Repository Submission
+                                </CardTitle>
+                                {submission?.githubEvaluation?.status === 'FAILED' && (
+                                    <Badge variant="destructive" className="bg-red-900/40 text-red-200 border-red-800">
+                                        Previous Analysis Failed
+                                    </Badge>
+                                )}
+                            </div>
+                            <CardDescription className="text-indigo-200/70 text-xs">
+                                Submit your team&apos;s public GitHub repository. Our AI inspects directory architecture, dependencies, actual source files, test suites, and commit cadence.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {submission?.githubEvaluation?.status === 'FAILED' && submission.githubEvaluation.error && (
+                                <div className="p-3 bg-red-950/40 border border-red-500/40 rounded-lg text-xs text-red-300 flex items-center gap-2">
+                                    <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
+                                    <span>Error: {submission.githubEvaluation.error}</span>
+                                </div>
+                            )}
+
+                            <form onSubmit={(e) => handleCodeSubmit(e, false)} className="space-y-3">
+                                <div className="flex flex-col sm:flex-row gap-3">
                                     <Input
                                         type="url"
                                         required
-                                        placeholder="https://github.com/organization/repo"
+                                        placeholder="https://github.com/organization/project"
                                         value={githubUrl}
                                         onChange={(e) => setGithubUrl(e.target.value)}
-                                        className="bg-neutral-900 border-indigo-900/50 flex-1 text-white"
+                                        className="bg-neutral-900 border-indigo-900/50 flex-1 text-white text-sm"
                                     />
-                                    <Button type="submit" disabled={isSubmittingCode} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
-                                        {isSubmittingCode ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyzing...</> : 'Submit Repo'}
+                                    <Button
+                                        type="submit"
+                                        disabled={isSubmittingCode || !githubUrl}
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shrink-0"
+                                    >
+                                        {isSubmittingCode ? (
+                                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyzing...</>
+                                        ) : (
+                                            'Submit Code for AI Audit'
+                                        )}
                                     </Button>
-                                </form>
-                            )}
+                                    {showEditRepo && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            onClick={() => setShowEditRepo(false)}
+                                            className="text-neutral-400 hover:text-white"
+                                        >
+                                            Cancel
+                                        </Button>
+                                    )}
+                                </div>
+                                <p className="text-[11px] text-neutral-400 leading-tight">
+                                    💡 <strong>Requirements:</strong> The repository must be public on github.com. Make sure it contains your project code, README setup instructions, and commit history.
+                                </p>
+                            </form>
+
                             {codeSubmitStatus.message && (
-                                <p className={`mt-2 text-xs ${codeSubmitStatus.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
+                                <p className={`text-xs ${codeSubmitStatus.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
                                     {codeSubmitStatus.message}
                                 </p>
                             )}

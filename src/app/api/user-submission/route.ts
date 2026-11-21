@@ -26,7 +26,7 @@ export async function GET() {
 
         // Find the team where this user is the verified leader
         const team = await Team.findOne({ leader: user._id })
-            .populate('hackathon', 'name slug theme description isCodeSubmissionOpen blindJudgingEnabled')
+            .populate('hackathon', 'name slug theme description isCodeSubmissionOpen codeSubmissionDeadline shortlistingStatus shortlistCount blindJudgingEnabled')
             .lean();
 
         if (!team) {

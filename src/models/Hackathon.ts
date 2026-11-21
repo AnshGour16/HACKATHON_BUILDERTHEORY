@@ -19,6 +19,7 @@ export interface IHackathon extends Document {
     theme: string;
     customAiPrompt: string;
     isCodeSubmissionOpen: boolean;
+    codeSubmissionDeadline?: Date;
     blindJudgingEnabled: boolean;
     tracks: ITrack[];
     isActive: boolean;
@@ -39,6 +40,7 @@ const HackathonSchema: Schema = new Schema({
     theme: { type: String, default: '' },
     customAiPrompt: { type: String, default: '' },
     isCodeSubmissionOpen: { type: Boolean, default: false },
+    codeSubmissionDeadline: { type: Date },
     blindJudgingEnabled: { type: Boolean, default: false },
     tracks: [{
         name: { type: String, required: true },

@@ -239,26 +239,91 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
                         </CardContent>
                     </Card>
 
-                    {/* GitHub Code Analysis */}
-                    {ai?.githubAnalysis && (
+                    {/* GitHub Code Analysis (Phase 5 Enhanced) */}
+                    {(data.githubEvaluation || ai?.githubAnalysis) && (
                         <Card className="md:col-span-2 border-indigo-900/50 bg-background/60 backdrop-blur-md">
                             <CardHeader>
-                                <CardTitle className="flex items-center justify-between text-lg text-indigo-400">
+                                <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-lg text-indigo-400">
                                     <div className="flex items-center gap-2">
-                                        <Github className="w-5 h-5" /> Code & Technical Analysis
+                                        <Github className="w-5 h-5" /> Round 2 Codebase & Technical Analysis
+                                        {data.githubEvaluation?.status === 'EVALUATED' && (
+                                            <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px]">
+                                                Evaluated
+                                            </Badge>
+                                        )}
+                                        {data.githubEvaluation?.status === 'FAILED' && (
+                                            <Badge variant="destructive" className="text-[10px]">
+                                                Analysis Failed
+                                            </Badge>
+                                        )}
                                     </div>
-                                    <Badge className="bg-indigo-900 text-indigo-100">Complexity Score: {ai.githubAnalysis.technicalComplexity}/100</Badge>
+                                    <Badge className="bg-indigo-950 text-indigo-200 border border-indigo-500/40 text-sm px-3 py-1 w-fit">
+                                        Technical Score: {data.githubEvaluation?.technicalScore ?? ai?.githubAnalysis?.technicalComplexity ?? 0}/100
+                                    </Badge>
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div>
-                                    <h4 className="text-sm font-semibold mb-1 text-white">Code Quality & Stack</h4>
-                                    <p className="text-sm text-neutral-300">{ai.githubAnalysis.codeQuality}</p>
+                                {data.githubEvaluation?.breakdown && (
+                                    <div>
+                                        <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
+                                            Rubric Score Breakdown (Out of 100)
+                                        </h4>
+                                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                            <div className="bg-neutral-900/60 p-2.5 rounded-lg border border-neutral-800 text-center">
+                                                <span className="text-[11px] text-neutral-400 block">Code Quality</span>
+                                                <span className="font-bold text-white text-base block mt-0.5">{data.githubEvaluation.breakdown.codeQuality} <span className="text-[10px] text-neutral-500">/25</span></span>
+                                            </div>
+                                            <div className="bg-neutral-900/60 p-2.5 rounded-lg border border-neutral-800 text-center">
+                                                <span className="text-[11px] text-neutral-400 block">Implementation</span>
+                                                <span className="font-bold text-white text-base block mt-0.5">{data.githubEvaluation.breakdown.technicalImplementation} <span className="text-[10px] text-neutral-500">/25</span></span>
+                                            </div>
+                                            <div className="bg-neutral-900/60 p-2.5 rounded-lg border border-neutral-800 text-center">
+                                                <span className="text-[11px] text-neutral-400 block">Architecture</span>
+                                                <span className="font-bold text-white text-base block mt-0.5">{data.githubEvaluation.breakdown.architecture} <span className="text-[10px] text-neutral-500">/20</span></span>
+                                            </div>
+                                            <div className="bg-neutral-900/60 p-2.5 rounded-lg border border-neutral-800 text-center">
+                                                <span className="text-[11px] text-neutral-400 block">Commits</span>
+                                                <span className="font-bold text-white text-base block mt-0.5">{data.githubEvaluation.breakdown.developmentActivity} <span className="text-[10px] text-neutral-500">/15</span></span>
+                                            </div>
+                                            <div className="bg-neutral-900/60 p-2.5 rounded-lg border border-neutral-800 text-center">
+                                                <span className="text-[11px] text-neutral-400 block">Testing & Docs</span>
+                                                <span className="font-bold text-white text-base block mt-0.5">{data.githubEvaluation.breakdown.documentationAndTesting} <span className="text-[10px] text-neutral-500">/15</span></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {data.githubEvaluation?.summary && (
+                                    <div>
+                                        <h4 className="text-sm font-semibold mb-1 text-white">Technical Executive Summary</h4>
+                                        <p className="text-xs text-neutral-300 leading-relaxed bg-neutral-900/40 p-3 rounded-lg border border-neutral-800">{data.githubEvaluation.summary}</p>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                                    <div>
+                                        <h4 className="text-xs font-semibold mb-1 text-indigo-300">Architecture Assessment</h4>
+                                        <p className="text-xs text-neutral-400 leading-relaxed">{data.githubEvaluation?.architectureAssessment || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-xs font-semibold mb-1 text-indigo-300">Code Quality Assessment</h4>
+                                        <p className="text-xs text-neutral-400 leading-relaxed">{data.githubEvaluation?.codeQualityAssessment || ai?.githubAnalysis?.codeQuality || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-xs font-semibold mb-1 text-indigo-300">Testing Assessment</h4>
+                                        <p className="text-xs text-neutral-400 leading-relaxed">{data.githubEvaluation?.testingAssessment || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-xs font-semibold mb-1 text-indigo-300">Commit & Development Effort</h4>
+                                        <p className="text-xs text-neutral-400 leading-relaxed">{data.githubEvaluation?.criteriaFeedback?.developmentActivity || ai?.githubAnalysis?.commitActivity || 'N/A'}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h4 className="text-sm font-semibold mb-1 text-white">Commit Activity Analysis</h4>
-                                    <p className="text-sm text-neutral-300">{ai.githubAnalysis.commitActivity}</p>
-                                </div>
+
+                                {data.githubEvaluation?.status === 'FAILED' && data.githubEvaluation.error && (
+                                    <div className="p-3 bg-red-950/40 border border-red-500/40 rounded-lg text-xs text-red-300">
+                                        Analysis Error: {data.githubEvaluation.error}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     )}

@@ -140,56 +140,178 @@ ${presentationText}
   }
 }
 
+export interface ICodebaseEvaluationResult {
+    technicalScore: number;
+    breakdown: {
+        codeQuality: number; // 0-25
+        technicalImplementation: number; // 0-25
+        architecture: number; // 0-20
+        developmentActivity: number; // 0-15
+        documentationAndTesting: number; // 0-15
+    };
+    criteriaFeedback: {
+        codeQuality: string;
+        technicalImplementation: string;
+        architecture: string;
+        developmentActivity: string;
+        documentationAndTesting: string;
+    };
+    architectureAssessment: string;
+    codeQualityAssessment: string;
+    documentationAssessment: string;
+    testingAssessment: string;
+    strengths: string[];
+    weaknesses: string[];
+    missingComponents: string[];
+    summary: string;
+    githubAnalysis?: {
+        technicalComplexity: number;
+        codeQuality: string;
+        commitActivity: string;
+    };
+}
+
 /**
- * Helper function to evaluate the team's GitHub codebase.
+ * Helper function to evaluate the team's GitHub codebase using Gemini.
+ * Follows a strict 5-part rubric totaling 100 points:
+ * - Code Quality (25%)
+ * - Technical Implementation (25%)
+ * - Architecture & Design (20%)
+ * - Development Activity (15%)
+ * - Documentation & Testing (15%)
  */
 export async function evaluateCodebaseWithGemini(
     githubContext: string,
-    hackathonInfo: { name?: string; theme?: string; customAiPrompt?: string } | null = null
-) {
+    hackathonInfo: { name?: string; theme?: string; customAiPrompt?: string; description?: string } | null = null
+): Promise<ICodebaseEvaluationResult> {
     let extraContext = '';
     if (hackathonInfo?.name || hackathonInfo?.theme) {
-        extraContext += `\nHackathon Focus: ${hackathonInfo.name || ''} ${hackathonInfo.theme ? `(Theme: ${hackathonInfo.theme})` : ''}\n`;
+        extraContext += `\nHACKATHON DOMAIN CONTEXT:
+- Event Name: "${hackathonInfo.name || 'Hackathon'}"
+${hackathonInfo.theme ? `- Theme/Track: "${hackathonInfo.theme}"` : ''}
+${hackathonInfo.description ? `- Description: "${hackathonInfo.description}"` : ''}
+`;
     }
-    if (hackathonInfo?.customAiPrompt) {
-        extraContext += `Organizer Code Evaluation Criteria: ${hackathonInfo.customAiPrompt}\n`;
+    if (hackathonInfo?.customAiPrompt && hackathonInfo.customAiPrompt.trim()) {
+        extraContext += `\nORGANIZER TECHNICAL CRITERIA & CUSTOM INSTRUCTIONS:
+"""
+${hackathonInfo.customAiPrompt.trim()}
+"""
+`;
     }
 
     const prompt = `
-You are a Senior Software Engineer evaluating a hackathon team's codebase. 
-Based on the text scraped from the team's GitHub repository below, evaluate their technical implementation.
+You are a Principal Software Architect and Senior Technical Hackathon Judge evaluating a project's codebase.
+Based strictly on the data gathered from the team's GitHub repository below, perform a rigorous technical audit.
+
 ${extraContext}
-Provide a strict JSON response containing the following structure:
+
+SCORING RUBRIC (Strictly out of 100 points):
+1. Code Quality (0 to 25 points):
+   - Readability, code hygiene, logical structure, error handling, clean interfaces, separation of concerns.
+2. Technical Implementation (0 to 25 points):
+   - Engineering depth, non-trivial functionality, proper integration of frameworks/APIs, real logic vs boilerplate templates.
+3. Architecture & Design (0 to 20 points):
+   - Modularity, scalability, directory organization, state management, decoupling of frontend/backend/services.
+4. Development Activity (0 to 15 points):
+   - Genuine development effort, iterative progress, meaningful commit messages, authentic cadence during the hackathon.
+5. Documentation & Testing (0 to 15 points):
+   - README setup instructions, prerequisites, architecture clarity, presence of automated tests (unit/integration) or CI/CD pipelines.
+
+CRITICAL EVALUATION GUIDELINES:
+- Base your scoring strictly on observed evidence from the provided repository audit.
+- Do NOT reward complexity simply because a project has many auto-generated files or vendor packages.
+- Do NOT assume a high commit count automatically proves genuine development (check for meaningful commit messages).
+- Do NOT claim code originality or plagiarism detection without verifiable evidence.
+- Distinguish clearly between observed evidence (e.g. "package.json contains jest", "no test directory detected") and inferences.
+- If automated tests or documentation are absent or inaccessible, explicitly explain that fact in the respective assessment.
+
+Provide a strict, valid JSON response with the following schema:
 {
-  "githubAnalysis": {
-    "technicalComplexity": number (0-100),
-    "codeQuality": "string (Short assessment of their tech stack / README quality)",
-    "commitActivity": "string (Short assessment of effort)"
-  }
+  "technicalScore": number (0-100, exact sum of the 5 breakdown scores),
+  "breakdown": {
+    "codeQuality": number (0-25),
+    "technicalImplementation": number (0-25),
+    "architecture": number (0-20),
+    "developmentActivity": number (0-15),
+    "documentationAndTesting": number (0-15)
+  },
+  "criteriaFeedback": {
+    "codeQuality": "string (Specific feedback explaining the code quality score)",
+    "technicalImplementation": "string (Specific feedback on implementation depth)",
+    "architecture": "string (Specific feedback on structural architecture)",
+    "developmentActivity": "string (Specific feedback on commit cadence & progress)",
+    "documentationAndTesting": "string (Specific feedback on README & testing evidence)"
+  },
+  "architectureAssessment": "string (1-2 paragraphs detailing the system architecture)",
+  "codeQualityAssessment": "string (Detailed assessment of coding practices and hygiene)",
+  "documentationAssessment": "string (Assessment of setup instructions and API docs)",
+  "testingAssessment": "string (Assessment of tests or noted absence of test suites)",
+  "strengths": [ "string" (List 2 to 4 technical strengths) ],
+  "weaknesses": [ "string" (List 2 to 4 technical weaknesses or tech debt) ],
+  "missingComponents": [ "string" (List missing architecture pieces, e.g. tests, env examples, validation) ],
+  "summary": "string (A concise 1-2 paragraph technical executive summary for judges)"
 }
 
-Github Repository Data Context:
+GitHub Repository Data Context:
 """
 ${githubContext}
 """
 `;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-      },
-    });
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+        },
+      });
 
-    if (response.text) {
-      const cleaned = response.text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-      return JSON.parse(cleaned);
+      if (response.text) {
+        const cleaned = response.text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+        const parsed = JSON.parse(cleaned);
+
+        // Validate and enforce score constraints
+        const bd = parsed.breakdown || {};
+        const cq = Math.max(0, Math.min(25, Number(bd.codeQuality) || 0));
+        const ti = Math.max(0, Math.min(25, Number(bd.technicalImplementation) || 0));
+        const ar = Math.max(0, Math.min(20, Number(bd.architecture) || 0));
+        const da = Math.max(0, Math.min(15, Number(bd.developmentActivity) || 0));
+        const dt = Math.max(0, Math.min(15, Number(bd.documentationAndTesting) || 0));
+
+        const computedScore = cq + ti + ar + da + dt;
+        parsed.technicalScore = typeof parsed.technicalScore === 'number'
+          ? Math.max(0, Math.min(100, Math.round(parsed.technicalScore)))
+          : computedScore;
+
+        parsed.breakdown = {
+          codeQuality: cq,
+          technicalImplementation: ti,
+          architecture: ar,
+          developmentActivity: da,
+          documentationAndTesting: dt
+        };
+
+        // Populate legacy githubAnalysis object for backward compatibility
+        parsed.githubAnalysis = {
+          technicalComplexity: parsed.technicalScore,
+          codeQuality: parsed.codeQualityAssessment || parsed.criteriaFeedback?.codeQuality || 'Code quality evaluated',
+          commitActivity: parsed.criteriaFeedback?.developmentActivity || 'Commit activity evaluated'
+        };
+
+        return parsed;
+      }
+    } catch (err: unknown) {
+      lastError = err;
+      console.warn(`[Gemini Codebase Evaluation] Attempt ${attempt} failed:`, err instanceof Error ? err.message : err);
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, attempt * 1500));
+      }
     }
-    throw new Error('No text returned from Gemini API');
-  } catch (error) {
-    console.error('Error calling Gemini codebase API:', error);
-    throw error;
   }
+
+  throw lastError || new Error('No text returned from Gemini API after retries');
 }

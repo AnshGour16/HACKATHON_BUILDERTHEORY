@@ -20,6 +20,8 @@ export interface ITeam extends Document {
     college?: string;
     members: ITeamMember[];
     githubUrl?: string;
+    githubStatus?: 'NOT_SUBMITTED' | 'ANALYZING' | 'EVALUATED' | 'FAILED';
+    githubScore?: number;
     isShortlisted: boolean;
     shortlistRank?: number;
     shortlistedAt?: Date;
@@ -46,6 +48,8 @@ const TeamSchema: Schema = new Schema({
         rollNo: { type: String }
     }],
     githubUrl: { type: String },
+    githubStatus: { type: String, enum: ['NOT_SUBMITTED', 'ANALYZING', 'EVALUATED', 'FAILED'], default: 'NOT_SUBMITTED' },
+    githubScore: { type: Number },
     isShortlisted: { type: Boolean, default: false },
     shortlistRank: { type: Number },
     shortlistedAt: { type: Date },

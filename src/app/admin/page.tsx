@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
     ExternalLink, RefreshCw, Download, Search, Trophy, Users,
-    BarChart2, AlertTriangle, Sparkles, Filter, CheckCircle2, Sliders, ChevronDown, ChevronUp
+    BarChart2, AlertTriangle, Sparkles, Filter, CheckCircle2, Sliders, ChevronDown, ChevronUp,
+    Github, Loader2, Eye, X
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -83,6 +84,12 @@ export default function AdminDashboard() {
     const [isPreviewing, setIsPreviewing] = useState(false);
     const [isApplyingShortlist, setIsApplyingShortlist] = useState(false);
     const [shortlistNotification, setShortlistNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+    // Round 2 Management State
+    const [showRound2Panel, setShowRound2Panel] = useState(true);
+    const [selectedCodeReport, setSelectedCodeReport] = useState<ISubmissionWithTeam | null>(null);
+    const [retryingTeamId, setRetryingTeamId] = useState<string | null>(null);
+    const [round2Notification, setRound2Notification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     const fetchHackathons = async () => {
         try {
@@ -183,7 +190,10 @@ export default function AdminDashboard() {
     // Computed Analytics
     const stats = useMemo(() => {
         const total = submissions.length;
-        if (total === 0) return { total: 0, highest: 0, topTeam: 'N/A', average: 0, plagiarismCount: 0, persistentShortlistedCount: 0 };
+        if (total === 0) return {
+            total: 0, highest: 0, topTeam: 'N/A', average: 0, plagiarismCount: 0, persistentShortlistedCount: 0,
+            round2ShortlistedCount: 0, round2SubmittedCount: 0, round2PendingCount: 0, round2EvaluatedCount: 0, round2FailedCount: 0
+        };
 
         let highest = 0;
         let topTeam = 'N/A';
@@ -191,6 +201,10 @@ export default function AdminDashboard() {
         let evaluatedCount = 0;
         let plagiarismCount = 0;
         let persistentShortlistedCount = 0;
+        let round2ShortlistedCount = 0;
+        let round2SubmittedCount = 0;
+        let round2EvaluatedCount = 0;
+        let round2FailedCount = 0;
 
         submissions.forEach((sub) => {
             const score = sub.aiEvaluation?.totalScore || 0;
@@ -207,10 +221,20 @@ export default function AdminDashboard() {
             }
             if (sub.team?.isShortlisted) {
                 persistentShortlistedCount++;
+                round2ShortlistedCount++;
+                if (sub.githubEvaluation?.repoUrl || sub.team?.githubUrl) {
+                    round2SubmittedCount++;
+                }
+            }
+            if (sub.githubEvaluation?.status === 'EVALUATED') {
+                round2EvaluatedCount++;
+            } else if (sub.githubEvaluation?.status === 'FAILED') {
+                round2FailedCount++;
             }
         });
 
         const average = evaluatedCount > 0 ? Math.round(totalScoreSum / evaluatedCount) : 0;
+        const round2PendingCount = Math.max(0, round2ShortlistedCount - round2SubmittedCount);
 
         return {
             total,
@@ -218,7 +242,12 @@ export default function AdminDashboard() {
             topTeam,
             average,
             plagiarismCount,
-            persistentShortlistedCount
+            persistentShortlistedCount,
+            round2ShortlistedCount,
+            round2SubmittedCount,
+            round2PendingCount,
+            round2EvaluatedCount,
+            round2FailedCount
         };
     }, [submissions]);
 
@@ -335,6 +364,29 @@ export default function AdminDashboard() {
             setShortlistNotification({ type: 'error', message: 'Network error while persisting shortlist.' });
         } finally {
             setIsApplyingShortlist(false);
+        }
+    };
+
+    const handleRetryCodeAnalysis = async (teamId: string) => {
+        setRetryingTeamId(teamId);
+        setRound2Notification(null);
+        try {
+            const res = await fetch('/api/submit-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ teamId, retry: true })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setRound2Notification({ type: 'success', message: 'Codebase re-evaluated successfully!' });
+                fetchSubmissions(selectedHackathonId);
+            } else {
+                setRound2Notification({ type: 'error', message: data.error || 'Failed to retry code evaluation.' });
+            }
+        } catch {
+            setRound2Notification({ type: 'error', message: 'Network error retrying code analysis.' });
+        } finally {
+            setRetryingTeamId(null);
         }
     };
 
@@ -655,6 +707,101 @@ export default function AdminDashboard() {
                     )}
                 </Card>
 
+                {/* --- ROUND 2 CODEBASE EVALUATION MANAGEMENT CENTER --- */}
+                <Card className="border-indigo-500/30 bg-neutral-950/70 backdrop-blur-md shadow-xl overflow-hidden">
+                    <CardHeader
+                        className="py-4 border-b border-neutral-800/60 flex flex-row items-center justify-between cursor-pointer"
+                        onClick={() => setShowRound2Panel(!showRound2Panel)}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                                <Github className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                                    Round 2 Codebase Evaluation Center
+                                    <Badge className={isCodeSubmissionOpen ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px]" : "bg-neutral-800 text-neutral-400 border-neutral-700 text-[10px]"}>
+                                        {isCodeSubmissionOpen ? "● Code Portal Unlocked" : "○ Code Portal Locked"}
+                                    </Badge>
+                                </CardTitle>
+                                <CardDescription className="text-xs text-neutral-400">
+                                    Monitor GitHub submissions from shortlisted teams, review automated AI technical audits, and retry failed evaluations.
+                                </CardDescription>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    togglePhase();
+                                }}
+                                disabled={updatingPhase}
+                                className={`text-xs h-7 border ${isCodeSubmissionOpen ? 'border-amber-500/40 text-amber-300 hover:bg-amber-950/30' : 'border-indigo-500/40 text-indigo-300 hover:bg-indigo-950/30'}`}
+                            >
+                                {updatingPhase ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+                                {isCodeSubmissionOpen ? 'Lock Round 2' : 'Unlock Round 2'}
+                            </Button>
+                            <Button variant="ghost" size="sm" className="text-neutral-400">
+                                {showRound2Panel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </Button>
+                        </div>
+                    </CardHeader>
+
+                    {showRound2Panel && (
+                        <CardContent className="p-6 space-y-6">
+                            {/* Notification */}
+                            {round2Notification && (
+                                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 border ${round2Notification.type === 'success' ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-red-950/40 border-red-500/40 text-red-300'}`}>
+                                    {round2Notification.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />}
+                                    <span>{round2Notification.message}</span>
+                                </div>
+                            )}
+
+                            {/* Round 2 Statistics Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                <div className="bg-neutral-900/40 border border-neutral-800 p-3 rounded-xl">
+                                    <span className="text-[11px] text-neutral-400 font-medium block">Eligible Shortlisted</span>
+                                    <div className="flex items-baseline gap-1 mt-1">
+                                        <span className="text-xl font-bold text-white">{stats.round2ShortlistedCount}</span>
+                                        <span className="text-[10px] text-emerald-400">Teams</span>
+                                    </div>
+                                </div>
+                                <div className="bg-neutral-900/40 border border-neutral-800 p-3 rounded-xl">
+                                    <span className="text-[11px] text-neutral-400 font-medium block">Repos Submitted</span>
+                                    <div className="flex items-baseline gap-1 mt-1">
+                                        <span className="text-xl font-bold text-indigo-400">{stats.round2SubmittedCount}</span>
+                                        <span className="text-[10px] text-neutral-500">/ {stats.round2ShortlistedCount}</span>
+                                    </div>
+                                </div>
+                                <div className="bg-neutral-900/40 border border-neutral-800 p-3 rounded-xl">
+                                    <span className="text-[11px] text-neutral-400 font-medium block">AI Evaluated</span>
+                                    <div className="flex items-baseline gap-1 mt-1">
+                                        <span className="text-xl font-bold text-emerald-400">{stats.round2EvaluatedCount}</span>
+                                        <span className="text-[10px] text-neutral-500">Codebases</span>
+                                    </div>
+                                </div>
+                                <div className="bg-neutral-900/40 border border-neutral-800 p-3 rounded-xl">
+                                    <span className="text-[11px] text-neutral-400 font-medium block">Pending Repo</span>
+                                    <div className="flex items-baseline gap-1 mt-1">
+                                        <span className="text-xl font-bold text-amber-400">{stats.round2PendingCount}</span>
+                                        <span className="text-[10px] text-neutral-500">Awaiting</span>
+                                    </div>
+                                </div>
+                                <div className="bg-neutral-900/40 border border-neutral-800 p-3 rounded-xl">
+                                    <span className="text-[11px] text-neutral-400 font-medium block">Failed / Retry</span>
+                                    <div className="flex items-baseline gap-1 mt-1">
+                                        <span className={`text-xl font-bold ${stats.round2FailedCount > 0 ? 'text-red-400' : 'text-neutral-400'}`}>
+                                            {stats.round2FailedCount}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    )}
+                </Card>
+
                 {/* Filter & Search Bar */}
                 <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-neutral-900/40 p-3.5 rounded-xl border border-neutral-800/80 backdrop-blur-sm">
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -757,6 +904,7 @@ export default function AdminDashboard() {
                                         <TableHead>Team & Track</TableHead>
                                         <TableHead className="hidden md:table-cell">Problem Statement</TableHead>
                                         <TableHead>Shortlist Status</TableHead>
+                                        <TableHead>Round 2 Codebase</TableHead>
                                         <TableHead className="text-right">ATS Score</TableHead>
                                         <TableHead className="text-right">Action</TableHead>
                                     </TableRow>
@@ -827,6 +975,65 @@ export default function AdminDashboard() {
                                                         )}
                                                     </div>
                                                 </TableCell>
+                                                <TableCell>
+                                                    {isShortlisted ? (
+                                                        <div className="flex flex-col gap-1 items-start">
+                                                            {sub.githubEvaluation?.status === 'EVALUATED' ? (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] px-1.5 py-0 font-bold">
+                                                                        {sub.githubEvaluation.technicalScore}/100
+                                                                    </Badge>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        onClick={() => setSelectedCodeReport(sub)}
+                                                                        className="h-6 px-1.5 text-[11px] text-indigo-400 hover:text-white"
+                                                                    >
+                                                                        <Eye className="w-3 h-3 mr-1" /> Audit
+                                                                    </Button>
+                                                                </div>
+                                                            ) : sub.githubEvaluation?.status === 'ANALYZING' ? (
+                                                                <Badge className="bg-indigo-900/40 text-indigo-300 border border-indigo-800 text-[10px] px-1.5 py-0">
+                                                                    <Loader2 className="w-2.5 h-2.5 animate-spin mr-1" /> Analyzing
+                                                                </Badge>
+                                                            ) : sub.githubEvaluation?.status === 'FAILED' ? (
+                                                                <div className="flex items-center gap-1">
+                                                                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                                                        Failed
+                                                                    </Badge>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        disabled={retryingTeamId === sub.team?._id?.toString()}
+                                                                        onClick={() => sub.team?._id && handleRetryCodeAnalysis(sub.team._id.toString())}
+                                                                        className="h-5 px-1 text-[10px] text-amber-400 hover:text-white"
+                                                                    >
+                                                                        <RefreshCw className={`w-2.5 h-2.5 mr-0.5 ${retryingTeamId === sub.team?._id?.toString() ? 'animate-spin' : ''}`} /> Retry
+                                                                    </Button>
+                                                                </div>
+                                                            ) : (
+                                                                <Badge variant="outline" className="text-neutral-500 border-neutral-800 text-[10px] px-1.5 py-0">
+                                                                    Pending Repo
+                                                                </Badge>
+                                                            )}
+                                                            {(sub.githubEvaluation?.repoUrl || sub.team?.githubUrl) && (
+                                                                <a
+                                                                    href={sub.githubEvaluation?.repoUrl || sub.team.githubUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-[10px] text-indigo-400/80 hover:text-indigo-300 flex items-center gap-1 max-w-[140px] truncate"
+                                                                >
+                                                                    <Github className="w-3 h-3 shrink-0" />
+                                                                    <span className="truncate">
+                                                                        {sub.githubEvaluation?.repoOwner ? `${sub.githubEvaluation.repoOwner}/${sub.githubEvaluation.repoName}` : 'repo'}
+                                                                    </span>
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-neutral-600">—</span>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell className="text-right font-bold text-lg">
                                                     {score !== undefined ? (
                                                         <span className={score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-primary' : 'text-amber-400'}>
@@ -852,6 +1059,190 @@ export default function AdminDashboard() {
                         )}
                     </CardContent>
                 </Card>
+
+                {/* AI Code Report Modal Overlay */}
+                {selectedCodeReport && (
+                    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6">
+                            <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs">
+                                            Rank #{selectedCodeReport.team?.shortlistRank || '—'}
+                                        </Badge>
+                                        <Badge variant="outline" className="border-indigo-500/40 text-indigo-400 text-xs">
+                                            {selectedCodeReport.team?.track || 'General'} Track
+                                        </Badge>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                        <Github className="w-5 h-5 text-indigo-400" />
+                                        {selectedCodeReport.team?.name}
+                                    </h3>
+                                    {selectedCodeReport.githubEvaluation?.repoUrl && (
+                                        <a
+                                            href={selectedCodeReport.githubEvaluation.repoUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-indigo-400 hover:underline flex items-center gap-1 mt-0.5"
+                                        >
+                                            {selectedCodeReport.githubEvaluation.repoUrl} <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="text-right">
+                                        <span className="text-[10px] uppercase text-neutral-400 block font-semibold">Technical Score</span>
+                                        <span className="text-2xl font-extrabold text-emerald-400 block">
+                                            {selectedCodeReport.githubEvaluation?.technicalScore ?? '—'} <span className="text-xs text-neutral-500 font-normal">/ 100</span>
+                                        </span>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setSelectedCodeReport(null)}
+                                        className="text-neutral-400 hover:text-white"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Rubric Breakdown */}
+                            {selectedCodeReport.githubEvaluation?.breakdown && (
+                                <div>
+                                    <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
+                                        Rubric Breakdown (Out of 100)
+                                    </h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                        <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
+                                            <span className="text-[11px] text-neutral-400 block">Code Quality</span>
+                                            <span className="font-bold text-white text-base block mt-0.5">
+                                                {selectedCodeReport.githubEvaluation.breakdown.codeQuality} <span className="text-[10px] text-neutral-500">/25</span>
+                                            </span>
+                                        </div>
+                                        <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
+                                            <span className="text-[11px] text-neutral-400 block">Implementation</span>
+                                            <span className="font-bold text-white text-base block mt-0.5">
+                                                {selectedCodeReport.githubEvaluation.breakdown.technicalImplementation} <span className="text-[10px] text-neutral-500">/25</span>
+                                            </span>
+                                        </div>
+                                        <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
+                                            <span className="text-[11px] text-neutral-400 block">Architecture</span>
+                                            <span className="font-bold text-white text-base block mt-0.5">
+                                                {selectedCodeReport.githubEvaluation.breakdown.architecture} <span className="text-[10px] text-neutral-500">/20</span>
+                                            </span>
+                                        </div>
+                                        <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
+                                            <span className="text-[11px] text-neutral-400 block">Commits</span>
+                                            <span className="font-bold text-white text-base block mt-0.5">
+                                                {selectedCodeReport.githubEvaluation.breakdown.developmentActivity} <span className="text-[10px] text-neutral-500">/15</span>
+                                            </span>
+                                        </div>
+                                        <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
+                                            <span className="text-[11px] text-neutral-400 block">Testing & Docs</span>
+                                            <span className="font-bold text-white text-base block mt-0.5">
+                                                {selectedCodeReport.githubEvaluation.breakdown.documentationAndTesting} <span className="text-[10px] text-neutral-500">/15</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Summary */}
+                            {selectedCodeReport.githubEvaluation?.summary && (
+                                <div className="bg-neutral-950/50 p-4 rounded-xl border border-neutral-800 space-y-1">
+                                    <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                                        Executive Technical Summary
+                                    </h4>
+                                    <p className="text-xs text-neutral-300 leading-relaxed">
+                                        {selectedCodeReport.githubEvaluation.summary}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Detailed Feedback */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                {selectedCodeReport.githubEvaluation?.architectureAssessment && (
+                                    <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
+                                        <h5 className="font-bold text-indigo-400 uppercase text-[11px]">System Architecture</h5>
+                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.architectureAssessment}</p>
+                                    </div>
+                                )}
+                                {selectedCodeReport.githubEvaluation?.codeQualityAssessment && (
+                                    <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
+                                        <h5 className="font-bold text-indigo-400 uppercase text-[11px]">Code Quality & Hygiene</h5>
+                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.codeQualityAssessment}</p>
+                                    </div>
+                                )}
+                                {selectedCodeReport.githubEvaluation?.testingAssessment && (
+                                    <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
+                                        <h5 className="font-bold text-indigo-400 uppercase text-[11px]">Automated Testing Evidence</h5>
+                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.testingAssessment}</p>
+                                    </div>
+                                )}
+                                {selectedCodeReport.githubEvaluation?.criteriaFeedback?.developmentActivity && (
+                                    <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
+                                        <h5 className="font-bold text-indigo-400 uppercase text-[11px]">Commit Effort & Cadence</h5>
+                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.criteriaFeedback.developmentActivity}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Strengths & Weaknesses */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {selectedCodeReport.githubEvaluation?.strengths && selectedCodeReport.githubEvaluation.strengths.length > 0 && (
+                                    <div className="bg-emerald-950/20 border border-emerald-500/20 p-3 rounded-lg space-y-1">
+                                        <h5 className="text-[11px] font-bold text-emerald-400 uppercase">Key Strengths</h5>
+                                        <ul className="text-xs text-neutral-300 space-y-1">
+                                            {selectedCodeReport.githubEvaluation.strengths.map((s, i) => (
+                                                <li key={i} className="flex items-start gap-1.5"><span className="text-emerald-400">•</span> {s}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                                {selectedCodeReport.githubEvaluation?.weaknesses && selectedCodeReport.githubEvaluation.weaknesses.length > 0 && (
+                                    <div className="bg-red-950/20 border border-red-500/20 p-3 rounded-lg space-y-1">
+                                        <h5 className="text-[11px] font-bold text-red-400 uppercase">Technical Weaknesses</h5>
+                                        <ul className="text-xs text-neutral-300 space-y-1">
+                                            {selectedCodeReport.githubEvaluation.weaknesses.map((w, i) => (
+                                                <li key={i} className="flex items-start gap-1.5"><span className="text-red-400">•</span> {w}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-end gap-2 border-t border-neutral-800 pt-4">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setSelectedCodeReport(null)}
+                                    className="border-neutral-800 text-neutral-300"
+                                >
+                                    Close
+                                </Button>
+                                {selectedCodeReport.team?._id && (
+                                    <Button
+                                        size="sm"
+                                        disabled={retryingTeamId === selectedCodeReport.team._id.toString()}
+                                        onClick={() => {
+                                            if (selectedCodeReport.team?._id) {
+                                                handleRetryCodeAnalysis(selectedCodeReport.team._id.toString());
+                                            }
+                                        }}
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs"
+                                    >
+                                        {retryingTeamId === selectedCodeReport.team._id.toString() ? (
+                                            <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Retrying...</>
+                                        ) : (
+                                            <><RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Re-Run Analysis</>
+                                        )}
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
