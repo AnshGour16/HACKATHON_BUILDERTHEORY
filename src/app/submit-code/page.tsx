@@ -186,11 +186,9 @@ export default function SubmitCodePage() {
                         <Github className="w-6 h-6 text-primary" />
                     </div>
                     <div className="flex items-center justify-center gap-2 mb-1">
-                        {pageState.team?.isShortlisted && (
-                            <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs">
-                                🏆 Shortlisted (Rank #{pageState.team?.shortlistRank || 1})
-                            </Badge>
-                        )}
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs">
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Ready for Code Evaluation
+                        </Badge>
                         <Badge variant="outline" className="border-neutral-700 text-neutral-300 text-xs">
                             {pageState.team?.track || 'General'} Track
                         </Badge>

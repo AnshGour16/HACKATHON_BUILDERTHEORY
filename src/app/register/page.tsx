@@ -163,7 +163,7 @@ export default function RegisterTeamPage() {
                     </div>
                     <h1 className="text-3xl font-extrabold tracking-tight text-white">Register Your Hackathon Team</h1>
                     <p className="text-neutral-400 text-sm max-w-xl mx-auto">
-                        Create your verified team leader account to submit pitch decks, receive AI feedback, and qualify for the leaderboard.
+                        Create your verified team leader account to submit your GitHub repository, receive AI code evaluation, and compete on the leaderboard.
                     </p>
                 </div>
 

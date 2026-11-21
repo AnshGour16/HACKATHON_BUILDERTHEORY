@@ -1,7 +1,7 @@
-import DocumentUpload from '@/components/DocumentUpload';
+import RepoAuditHero from '@/components/RepoAuditHero';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Sparkles, FileText, Cpu, Trophy } from 'lucide-react';
+import { Sparkles, Cpu, Trophy, Github } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -26,6 +26,7 @@ export default function Home() {
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link href="/submit-code">
               <Button variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 font-semibold">
+                <Github className="w-4 h-4 mr-2" />
                 Submit GitHub Repository
               </Button>
             </Link>
@@ -43,10 +44,10 @@ export default function Home() {
         </div>
 
         {/* 3-Step Guided Workflow Banner */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
           <div className="bg-neutral-900/40 border border-neutral-800/80 rounded-xl p-4 flex items-start gap-3 backdrop-blur-sm">
             <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 text-primary">
-              <FileText className="w-5 h-5" />
+              <Github className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-sm font-semibold text-white">1. Submit GitHub URL</h2>
@@ -75,7 +76,7 @@ export default function Home() {
           </div>
         </div>
 
-        <DocumentUpload />
+        <RepoAuditHero />
       </main>
     </div>
   );

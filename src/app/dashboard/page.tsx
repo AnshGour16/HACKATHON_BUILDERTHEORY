@@ -7,12 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-    Brain, Target, AlertTriangle, CheckCircle2, BarChart3,
-    Github, Loader2, UploadCloud, FileText, Trophy, Users,
+    Brain, Target, AlertTriangle, CheckCircle2,
+    Github, Loader2, Trophy, Users,
     ExternalLink, Code2, GitBranch, ShieldCheck, Activity, Layers,
-    Crown, Award
+    Crown, Sparkles, RefreshCw, Wrench
 } from 'lucide-react';
-import ScoreRadarChart from '@/components/ScoreRadarChart';
 
 interface ITeamMember {
     name: string;
@@ -35,9 +34,6 @@ interface ITeamData {
     githubUrl?: string;
     githubStatus?: 'NOT_SUBMITTED' | 'ANALYZING' | 'EVALUATED' | 'FAILED';
     githubScore?: number;
-    isShortlisted: boolean;
-    shortlistRank?: number;
-    shortlistedAt?: string | Date;
     finalScore?: number;
     finalRank?: number;
     isWinner?: boolean;
@@ -48,12 +44,8 @@ interface ITeamData {
         description: string;
         isCodeSubmissionOpen: boolean;
         codeSubmissionDeadline?: string | Date;
-        shortlistingStatus?: string;
-        shortlistCount?: number;
         isFinalResultsPublished?: boolean;
         finalResultsPublishedAt?: string | Date;
-        pitchWeight?: number;
-        githubWeight?: number;
         winnerCount?: number;
     };
 }
@@ -82,17 +74,6 @@ interface IGitHubEvaluationData {
         documentationDevPractices?: number;
         developmentActivity?: number;
     };
-    criteriaFeedback?: {
-        codeQualityMaintainability?: string;
-        codeQuality?: string;
-        technicalImplementation?: string;
-        architectureProjectStructure?: string;
-        architecture?: string;
-        testingErrorHandling?: string;
-        documentationAndTesting?: string;
-        documentationDevPractices?: string;
-        developmentActivity?: string;
-    };
     architectureAssessment?: string;
     codeQualityAssessment?: string;
     documentationAssessment?: string;
@@ -104,53 +85,20 @@ interface IGitHubEvaluationData {
     strengths?: string[];
     weaknesses?: string[];
     missingImplementationEvidence?: string[];
-    missingComponents?: string[];
     improvementRecommendations?: string[];
     filesInspected?: string[];
     analysisLimitations?: string[];
     summary?: string;
-    technicalSummary?: string;
     error?: string;
-}
-
-interface IAI {
-    totalScore?: number;
-    summaryForJudges?: string;
-    criteriaScores?: { criterion: string; score: number; reasoning: string }[];
-    missingSections?: string[];
-    strengths?: string[];
-    weaknesses?: string[];
-    plagiarismFlag?: boolean;
-    plagiarismWarning?: string;
-    githubAnalysis?: {
-        technicalComplexity: number;
-        codeQuality: string;
-        commitActivity: string;
-    };
 }
 
 interface ISubmissionData {
     _id: string;
     status: 'PENDING' | 'AI_PROCESSING' | 'EVALUATED' | 'FAILED';
-    fileName?: string;
-    fileUrl?: string;
-    fileFormat?: string;
-    slideCount?: number;
-    hasVisualAssets?: boolean;
-    extractionError?: string;
     finalScore?: number;
     finalRank?: number;
     isWinner?: boolean;
     winnerPosition?: number;
-    finalScoreBreakdown?: {
-        pitchScore: number;
-        githubScore: number;
-        pitchWeight: number;
-        githubWeight: number;
-        pitchContribution: number;
-        githubContribution: number;
-    };
-    aiEvaluation?: IAI;
     githubEvaluation?: IGitHubEvaluationData;
 }
 
@@ -160,15 +108,10 @@ export default function ParticipantDashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Presentation Upload State (inside dashboard)
-    const [uploadFile, setUploadFile] = useState<File | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadError, setUploadError] = useState<string | null>(null);
-    const [showReupload, setShowReupload] = useState(false);
-
-    // Phase 2 Code Submission State
+    // Code Submission & Re-evaluation State
     const [githubUrl, setGithubUrl] = useState('');
     const [isSubmittingCode, setIsSubmittingCode] = useState(false);
+    const [showEditRepo, setShowEditRepo] = useState(false);
     const [codeSubmitStatus, setCodeSubmitStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({ type: 'idle', message: '' });
 
     const fetchDashboardData = async () => {
@@ -185,6 +128,9 @@ export default function ParticipantDashboard() {
             if (data.success) {
                 setTeam(data.team || null);
                 setSubmission(data.submission || null);
+                if (data.team?.githubUrl) {
+                    setGithubUrl(data.team.githubUrl);
+                }
             }
         } catch (e) {
             console.error(e);
@@ -197,39 +143,6 @@ export default function ParticipantDashboard() {
     useEffect(() => {
         fetchDashboardData();
     }, []);
-
-    const handlePresentationUpload = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!uploadFile) return;
-
-        setIsUploading(true);
-        setUploadError(null);
-
-        const formData = new FormData();
-        formData.append('file', uploadFile);
-
-        try {
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await res.json();
-
-            if (res.ok && data.success) {
-                setUploadFile(null);
-                fetchDashboardData();
-            } else {
-                setUploadError(data.error || 'Failed to analyze presentation.');
-            }
-        } catch {
-            setUploadError('Network error during upload.');
-        } finally {
-            setIsUploading(false);
-        }
-    };
-
-    const [showEditRepo, setShowEditRepo] = useState(false);
 
     const handleCodeSubmit = async (e?: React.FormEvent, isRetry = false) => {
         if (e) e.preventDefault();
@@ -252,7 +165,6 @@ export default function ParticipantDashboard() {
 
             if (res.ok && data.success) {
                 setCodeSubmitStatus({ type: 'success', message: 'Successfully analyzed and evaluated repository!' });
-                setGithubUrl('');
                 setShowEditRepo(false);
                 fetchDashboardData();
             } else {
@@ -269,7 +181,7 @@ export default function ParticipantDashboard() {
         return (
             <div className="min-h-screen bg-neutral-950 flex flex-col justify-center items-center text-white gap-4">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-sm text-neutral-400">Loading your team dashboard...</p>
+                <p className="text-sm text-neutral-400">Loading your team repository dashboard...</p>
             </div>
         );
     }
@@ -306,8 +218,10 @@ export default function ParticipantDashboard() {
         );
     }
 
-    const ai = submission?.aiEvaluation;
-    const isCodePhaseOpen = team.hackathon?.isCodeSubmissionOpen || false;
+    const gh = submission?.githubEvaluation;
+    const isEvaluated = gh?.status === 'EVALUATED' || team.githubStatus === 'EVALUATED';
+    const currentScore = gh?.technicalScore ?? team.githubScore;
+    const isCodePhaseOpen = team.hackathon?.isCodeSubmissionOpen ?? true;
 
     return (
         <div className="min-h-screen p-6 md:p-10 relative">
@@ -335,17 +249,13 @@ export default function ParticipantDashboard() {
                                         Official Final Rank #{team.finalRank}
                                     </Badge>
                                 ) : null
-                            ) : team.isShortlisted ? (
+                            ) : isEvaluated ? (
                                 <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                                    🏆 Shortlisted for Round 2 (Rank #{team.shortlistRank || 1})
-                                </Badge>
-                            ) : team.hackathon?.shortlistingStatus === 'SHORTLISTED' ? (
-                                <Badge variant="outline" className="border-neutral-700 text-neutral-400">
-                                    Not Shortlisted for Round 2
+                                    <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Codebase Evaluated & Ranked
                                 </Badge>
                             ) : (
                                 <Badge variant="outline" className="border-primary/30 text-primary">
-                                    Round 1 Screening
+                                    <Github className="w-3.5 h-3.5 mr-1" /> Awaiting Code Submission
                                 </Badge>
                             )}
                         </div>
@@ -363,97 +273,57 @@ export default function ParticipantDashboard() {
                         )}
                     </div>
 
+                    {/* Prominent Score Display */}
                     {team.hackathon?.isFinalResultsPublished && (team.finalScore !== undefined || submission?.finalScore !== undefined) ? (
                         <div className="flex flex-col items-center bg-amber-500/10 border border-amber-500/30 px-6 py-4 rounded-xl">
                             <span className="text-[11px] text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                                <Crown className="w-3.5 h-3.5" /> Final Composite Score
+                                <Crown className="w-3.5 h-3.5" /> Official Final Score
                             </span>
                             <span className="text-4xl font-extrabold text-white mt-1">
                                 {team.finalScore ?? submission?.finalScore}
                                 <span className="text-xs text-neutral-500 font-normal"> / 100</span>
                             </span>
-                            {submission?.finalScoreBreakdown && (
-                                <span className="text-[10px] text-amber-300/80 font-mono mt-1">
-                                    Pitch: {submission.finalScoreBreakdown.pitchContribution} • Code: {submission.finalScoreBreakdown.githubContribution}
+                            {team.finalRank && (
+                                <span className="text-xs text-amber-300 font-semibold mt-1">
+                                    Leaderboard Rank #{team.finalRank}
                                 </span>
                             )}
                         </div>
-                    ) : ai?.totalScore !== undefined ? (
-                        <div className="flex flex-col items-center bg-primary/10 border border-primary/20 px-6 py-4 rounded-xl">
-                            <span className="text-xs text-primary font-semibold uppercase">ATS Score</span>
+                    ) : typeof currentScore === 'number' ? (
+                        <div className="flex flex-col items-center bg-indigo-500/10 border border-indigo-500/30 px-6 py-4 rounded-xl">
+                            <span className="text-xs text-indigo-300 font-semibold uppercase tracking-wider flex items-center gap-1">
+                                <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> Repository Score
+                            </span>
                             <span className="text-4xl font-extrabold text-white mt-1">
-                                {ai.totalScore}
+                                {currentScore}
                                 <span className="text-xs text-neutral-500 font-normal"> / 100</span>
                             </span>
+                            <span className="text-[10px] text-neutral-400 mt-0.5">100-Point AI Rubric</span>
                         </div>
                     ) : null}
                 </div>
 
                 {/* Final Results & Winner Announcement Banner */}
-                {team.hackathon?.isFinalResultsPublished ? (
-                    team.isWinner ? (
-                        <div className="bg-gradient-to-r from-amber-950/40 via-amber-900/30 to-amber-950/40 border border-amber-500/50 p-5 rounded-2xl flex items-center gap-4 text-amber-300 text-sm shadow-xl shadow-amber-500/10 animate-in fade-in">
-                            <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
-                                <Crown className="w-7 h-7" />
-                            </div>
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                    <h3 className="font-extrabold text-white text-lg">
-                                        🎉 Congratulations! {team.name} is a Hackathon Winner!
-                                    </h3>
-                                    <Badge className="bg-amber-500 text-black font-black text-xs px-2 py-0.5">
-                                        {team.winnerPosition === 1 ? '🏆 1ST PLACE CHAMPION' : team.winnerPosition === 2 ? '🥈 2ND PLACE WINNER' : team.winnerPosition === 3 ? '🥉 3RD PLACE WINNER' : '🏅 OFFICIAL FINALIST'}
-                                    </Badge>
-                                </div>
-                                <p className="text-neutral-300 text-xs">
-                                    Official Final Rank: <strong className="text-amber-400">#{team.finalRank}</strong> • Final Composite Score: <strong className="text-white">{team.finalScore ?? submission?.finalScore} / 100</strong>
-                                    {submission?.finalScoreBreakdown && (
-                                        <span className="text-neutral-400 ml-1">
-                                            (Pitch Deck: {submission.finalScoreBreakdown.pitchContribution} pts + GitHub Codebase: {submission.finalScoreBreakdown.githubContribution} pts)
-                                        </span>
-                                    )}
-                                </p>
-                            </div>
+                {team.hackathon?.isFinalResultsPublished && team.isWinner && (
+                    <div className="bg-gradient-to-r from-amber-950/40 via-amber-900/30 to-amber-950/40 border border-amber-500/50 p-5 rounded-2xl flex items-center gap-4 text-amber-300 text-sm shadow-xl shadow-amber-500/10 animate-in fade-in">
+                        <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                            <Crown className="w-7 h-7" />
                         </div>
-                    ) : team.finalRank ? (
-                        <div className="bg-neutral-900/70 border border-neutral-800 p-4 rounded-xl flex items-center gap-3 text-neutral-300 text-sm animate-in fade-in">
-                            <Award className="w-6 h-6 text-indigo-400 shrink-0" />
-                            <div>
-                                <span className="font-bold text-white text-base">Official Final Leaderboard Published</span>
-                                <p className="text-neutral-400 text-xs mt-0.5">
-                                    Official Final Rank: <strong className="text-white">#{team.finalRank}</strong> • Final Composite Score: <strong className="text-amber-400">{team.finalScore ?? submission?.finalScore} / 100</strong>.
-                                </p>
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-extrabold text-white text-lg">
+                                    🎉 Congratulations! {team.name} is a Hackathon Winner!
+                                </h3>
+                                <Badge className="bg-amber-500 text-black font-black text-xs px-2 py-0.5">
+                                    {team.winnerPosition === 1 ? '🏆 1ST PLACE CHAMPION' : team.winnerPosition === 2 ? '🥈 2ND PLACE WINNER' : team.winnerPosition === 3 ? '🥉 3RD PLACE WINNER' : '🏅 OFFICIAL FINALIST'}
+                                </Badge>
                             </div>
-                        </div>
-                    ) : null
-                ) : team.isShortlisted && submission?.githubEvaluation?.status === 'EVALUATED' ? (
-                    <div className="bg-indigo-950/30 border border-indigo-500/30 p-4 rounded-xl flex items-center gap-3 text-indigo-300 text-sm animate-in fade-in">
-                        <CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0" />
-                        <div>
-                            <span className="font-semibold text-white">Round 2 Codebase Evaluated Successfully</span>
-                            <p className="text-xs text-neutral-400 mt-0.5">
-                                Technical Score: <strong className="text-indigo-300">{submission.githubEvaluation.technicalScore} / 100</strong>. Final composite evaluations and podium selections are currently under review by judges.
+                            <p className="text-neutral-300 text-xs">
+                                Official Final Rank: <strong className="text-amber-400">#{team.finalRank}</strong> • Repository Score: <strong className="text-white">{team.finalScore ?? submission?.finalScore ?? currentScore} / 100</strong>
                             </p>
                         </div>
                     </div>
-                ) : team.isShortlisted ? (
-                    <div className="bg-emerald-950/40 border border-emerald-500/40 p-4 rounded-xl flex items-center gap-3 text-emerald-300 text-sm animate-in fade-in">
-                        <Trophy className="w-6 h-6 text-emerald-400 shrink-0" />
-                        <div>
-                            <span className="font-bold text-white text-base">Congratulations! Your team is Shortlisted for Round 2!</span>
-                            <p className="text-emerald-400/80 text-xs mt-0.5">
-                                Official Rank: #{team.shortlistRank || 1} • Qualified on {team.shortlistedAt ? new Date(team.shortlistedAt).toLocaleDateString() : 'Round 1 Finalization'}.
-                            </p>
-                        </div>
-                    </div>
-                ) : team.hackathon?.shortlistingStatus === 'SHORTLISTED' && submission?.status === 'EVALUATED' ? (
-                    <div className="bg-neutral-900/60 border border-neutral-800 p-4 rounded-xl text-neutral-400 text-sm">
-                        <span className="font-semibold text-neutral-300">Round 1 Shortlisting Concluded</span>
-                        <p className="text-xs text-neutral-500 mt-1">
-                            Your presentation was evaluated with an ATS score of {ai?.totalScore ?? 0}/100. The top {team.hackathon.shortlistCount || 'selected'} teams have advanced to Round 2.
-                        </p>
-                    </div>
-                ) : null}
+                )}
 
                 {/* Team Members Roster */}
                 {team.members && team.members.length > 0 && (
@@ -475,285 +345,19 @@ export default function ParticipantDashboard() {
                     </Card>
                 )}
 
-                {/* --- Pitch Deck Upload or Evaluation Section --- */}
-                {!submission || submission.status === 'FAILED' || showReupload ? (
-                    <Card className="border-primary/30 bg-neutral-900/60 backdrop-blur-md">
-                        <CardHeader>
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <CardTitle className="flex items-center gap-2 text-lg text-white">
-                                        <UploadCloud className="w-5 h-5 text-primary" /> {submission?.status === 'FAILED' ? 'Retry Presentation Upload' : showReupload ? 'Re-upload Presentation' : 'Upload Project Presentation'}
-                                    </CardTitle>
-                                    <CardDescription>
-                                        Upload your presentation in PDF (.pdf), PowerPoint (.pptx), or legacy PowerPoint (.ppt) format.
-                                    </CardDescription>
-                                </div>
-                                {showReupload && (
-                                    <Button variant="ghost" size="sm" onClick={() => setShowReupload(false)} className="text-neutral-400 hover:text-white">
-                                        Cancel
-                                    </Button>
-                                )}
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handlePresentationUpload} className="space-y-4">
-                                <div className="border-2 border-dashed border-neutral-700 hover:border-primary/50 rounded-xl p-8 text-center transition-colors">
-                                    <FileText className="w-10 h-10 text-primary mx-auto mb-2 opacity-60" />
-                                    <input
-                                        type="file"
-                                        accept=".pdf,.pptx,.ppt,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint"
-                                        id="deckUpload"
-                                        onChange={(e) => {
-                                            setUploadFile(e.target.files?.[0] || null);
-                                            setUploadError(null);
-                                        }}
-                                        className="hidden"
-                                    />
-                                    <label htmlFor="deckUpload" className="cursor-pointer block">
-                                        {uploadFile ? (
-                                            <div className="space-y-1">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <Badge variant="outline" className="uppercase text-[10px] px-2 py-0.5 border-primary/40 text-primary">
-                                                        {uploadFile.name.split('.').pop() || 'FILE'}
-                                                    </Badge>
-                                                    <span className="text-sm font-semibold text-white">{uploadFile.name}</span>
-                                                </div>
-                                                <p className="text-xs text-neutral-400">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB • Ready to analyze</p>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <span className="text-sm font-semibold text-white hover:text-primary">
-                                                    Click to select presentation deck (PDF, PPTX, or PPT)
-                                                </span>
-                                                <p className="text-xs text-neutral-500 mt-1">Supports .pdf, .pptx, and .ppt up to 25MB</p>
-                                            </>
-                                        )}
-                                    </label>
-                                </div>
-
-                                {uploadError && (
-                                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md text-red-400 text-sm">
-                                        {uploadError}
-                                    </div>
-                                )}
-
-                                {submission?.status === 'FAILED' && !uploadError && (
-                                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md text-red-400 text-sm">
-                                        Previous evaluation failed: {submission.extractionError || 'Unable to parse presentation. Please upload a valid presentation file.'}
-                                    </div>
-                                )}
-
-                                <Button
-                                    type="submit"
-                                    disabled={!uploadFile || isUploading}
-                                    className="w-full bg-primary hover:bg-primary/90 text-black font-bold h-10"
-                                >
-                                    {isUploading ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Extracting Slides & Running AI Evaluation...
-                                        </>
-                                    ) : (
-                                        'Submit Presentation for AI Evaluation'
-                                    )}
-                                </Button>
-                            </form>
-                        </CardContent>
-                    </Card>
-                ) : submission.status === 'AI_PROCESSING' ? (
-                    <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
-                        <CardContent className="py-12 text-center text-neutral-400">
-                            <Brain className="w-12 h-12 mx-auto mb-4 text-primary animate-pulse" />
-                            <h3 className="text-lg font-medium text-white mb-1">AI is analyzing your presentation...</h3>
-                            <p className="text-sm">Extracting slides, tables, and evaluating innovation against track rubrics.</p>
-                            <Button onClick={fetchDashboardData} variant="outline" size="sm" className="mt-4 border-neutral-700">
-                                Refresh Status
-                            </Button>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <>
-                        {/* Submission Metadata Banner */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 bg-neutral-900/50 border border-neutral-800 px-5 py-3 rounded-xl text-xs text-neutral-400">
-                            <div className="flex items-center gap-3">
-                                <FileText className="w-4 h-4 text-primary" />
-                                <span className="text-white font-medium">{submission.fileName || 'Presentation Deck'}</span>
-                                {submission.fileFormat && (
-                                    <Badge variant="outline" className="uppercase text-[10px] px-1.5 py-0 border-primary/40 text-primary">
-                                        {submission.fileFormat}
-                                    </Badge>
-                                )}
-                                {submission.slideCount && (
-                                    <span className="text-neutral-400">• {submission.slideCount} Slides Extracted</span>
-                                )}
-                                {submission.hasVisualAssets && (
-                                    <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                        Visual assets flagged
-                                    </Badge>
-                                )}
-                            </div>
-                            <Button variant="ghost" size="sm" onClick={() => setShowReupload(true)} className="h-7 text-xs text-neutral-300 hover:text-white">
-                                Re-upload Presentation
-                            </Button>
-                        </div>
-
-                        {/* Executive Summary */}
-                        <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Brain className="w-5 h-5 text-primary" /> AI Executive Summary
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="leading-relaxed text-neutral-300">
-                                    {ai?.summaryForJudges || 'No summary available.'}
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        {/* Plagiarism Warning if flagged */}
-                        {ai?.plagiarismFlag && (
-                            <div className="bg-amber-950/40 border border-amber-500/50 p-4 rounded-xl flex items-start gap-3">
-                                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                                <div>
-                                    <h4 className="text-sm font-semibold text-amber-300">Originality Warning Flagged</h4>
-                                    <p className="text-xs text-neutral-300 mt-0.5">{ai.plagiarismWarning || 'Idea exhibits common hackathon cliché patterns.'}</p>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Strengths */}
-                            <Card className="border-green-900/50 bg-background/60 backdrop-blur-md">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg text-green-400">
-                                        <CheckCircle2 className="w-5 h-5" /> Key Strengths
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    {(ai?.strengths?.length ?? 0) > 0 ? (
-                                        <ul className="space-y-2">
-                                            {ai?.strengths?.map((str, i) => (
-                                                <li key={i} className="flex gap-2 items-start text-sm text-neutral-300">
-                                                    <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                                                    <span>{str}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground">No notable strengths identified.</p>
-                                    )}
-                                </CardContent>
-                            </Card>
-
-                            {/* Weaknesses */}
-                            <Card className="border-red-900/50 bg-background/60 backdrop-blur-md">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg text-red-400">
-                                        <AlertTriangle className="w-5 h-5" /> Areas for Improvement
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {(ai?.missingSections?.length ?? 0) > 0 && (
-                                        <div>
-                                            <h4 className="text-sm font-semibold mb-2 text-red-300">Missing Mandatory Slides:</h4>
-                                            <div className="flex flex-wrap gap-2">
-                                                {ai?.missingSections?.map((sec, i) => (
-                                                    <Badge key={i} variant="destructive" className="bg-red-900/40 text-red-200">
-                                                        {sec}
-                                                    </Badge>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {(ai?.weaknesses?.length ?? 0) > 0 && (
-                                        <div>
-                                            <h4 className="text-sm font-semibold mb-2 text-neutral-300">General Recommendations:</h4>
-                                            <ul className="list-disc pl-5 space-y-1">
-                                                {ai?.weaknesses?.map((weak, i) => (
-                                                    <li key={i} className="text-sm text-neutral-400">{weak}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-
-                            {/* Criteria Breakdown */}
-                            <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg text-white">
-                                        <Target className="w-5 h-5 text-primary" /> Criteria Scoring
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {ai?.criteriaScores?.map((crit, idx) => (
-                                        <div key={idx} className="space-y-1">
-                                            <div className="flex justify-between items-center text-sm">
-                                                <span className="font-semibold text-white">{crit.criterion}</span>
-                                                <span className="text-primary font-bold">{crit.score}</span>
-                                            </div>
-                                            <p className="text-xs text-neutral-400">{crit.reasoning}</p>
-                                        </div>
-                                    ))}
-                                </CardContent>
-                            </Card>
-
-                            {/* Radar Chart */}
-                            <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg text-white">
-                                        <BarChart3 className="w-5 h-5 text-primary" /> Skill Distribution
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    {(ai?.criteriaScores?.length ?? 0) > 0 ? (
-                                        <ScoreRadarChart
-                                            data={ai?.criteriaScores?.map(c => ({
-                                                criterion: c.criterion,
-                                                score: c.score,
-                                                fullMark: 10
-                                            })) || []}
-                                        />
-                                    ) : (
-                                        <div className="text-center py-10 text-muted-foreground">Not enough data to graph</div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </>
-                )}
-
                 {/* ======================================================== */}
-                {/* ROUND 2: SECURE GITHUB REPOSITORY SUBMISSION & EVALUATION */}
+                {/* PRIMARY SECTION: GITHUB CODEBASE EVALUATION & SCORECARD */}
                 {/* ======================================================== */}
-                {!team.isShortlisted ? (
-                    <Card className="border-neutral-800 bg-neutral-900/30 backdrop-blur-md">
-                        <CardHeader className="py-4">
-                            <div className="flex items-center justify-between">
-                                <CardTitle className="flex items-center gap-2 text-neutral-400 text-base">
-                                    <Github className="w-5 h-5 text-neutral-500" />
-                                    Round 2: GitHub Codebase Evaluation
-                                </CardTitle>
-                                <Badge variant="outline" className="border-neutral-800 text-neutral-500 text-xs">
-                                    Round 1 Shortlist Only
-                                </Badge>
-                            </div>
-                            <CardDescription className="text-xs text-neutral-500 mt-1">
-                                Technical codebase analysis is exclusively reserved for teams that qualify from the Round 1 pitch deck screening.
-                            </CardDescription>
-                        </CardHeader>
-                    </Card>
-                ) : !isCodePhaseOpen ? (
+                {!isCodePhaseOpen && !isEvaluated ? (
                     <Card className="border-amber-500/30 bg-amber-950/10 backdrop-blur-md">
                         <CardHeader className="py-5">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                 <div>
                                     <CardTitle className="flex items-center gap-2 text-amber-300 text-lg font-bold">
-                                        <Github className="w-5 h-5 text-amber-400" />
-                                        Round 2: GitHub Repository Submission
+                                        <Github className="w-5 h-5 text-amber-400" /> Repository Submissions Locked
                                     </CardTitle>
                                     <CardDescription className="text-amber-200/70 text-xs mt-1">
-                                        Your team is shortlisted for Round 2! The code submission portal is currently locked by the organizers and will open shortly.
+                                        Repository submission for {team.hackathon?.name || 'this hackathon'} is currently locked by the organizers.
                                     </CardDescription>
                                 </div>
                                 <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs py-1 px-3 w-fit">
@@ -762,52 +366,57 @@ export default function ParticipantDashboard() {
                             </div>
                         </CardHeader>
                     </Card>
-                ) : isSubmittingCode || submission?.githubEvaluation?.status === 'ANALYZING' ? (
+                ) : isSubmittingCode || gh?.status === 'ANALYZING' ? (
                     <Card className="border-indigo-500/40 bg-indigo-950/30 backdrop-blur-md animate-pulse">
-                        <CardHeader className="text-center py-8">
-                            <Loader2 className="w-10 h-10 animate-spin text-indigo-400 mx-auto mb-3" />
-                            <CardTitle className="text-xl text-white font-bold">
+                        <CardHeader className="text-center py-10">
+                            <Loader2 className="w-12 h-12 animate-spin text-indigo-400 mx-auto mb-3" />
+                            <CardTitle className="text-2xl text-white font-bold">
                                 AI Codebase Analysis In Progress
                             </CardTitle>
-                            <CardDescription className="text-neutral-400 text-sm max-w-md mx-auto">
-                                Gathering repository tree, inspecting dependencies, auditing source code, and analyzing development activity with Gemini...
+                            <CardDescription className="text-neutral-400 text-sm max-w-md mx-auto mt-2">
+                                Gathering repository tree, inspecting dependencies, auditing source code files, and analyzing development activity with Gemini 2.5 Flash...
                             </CardDescription>
+                            <div className="flex justify-center mt-4">
+                                <Button onClick={fetchDashboardData} variant="outline" size="sm" className="border-neutral-700 text-xs">
+                                    <RefreshCw className="w-3.5 h-3.5 mr-1" /> Refresh Status
+                                </Button>
+                            </div>
                         </CardHeader>
                     </Card>
-                ) : submission?.githubEvaluation?.status === 'EVALUATED' && !showEditRepo ? (
+                ) : isEvaluated && gh && !showEditRepo ? (
                     <Card className="border-indigo-500/30 bg-neutral-900/50 backdrop-blur-md shadow-xl space-y-6 p-6">
                         {/* Header Profile */}
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-neutral-800 pb-5">
                             <div>
-                                <div className="flex items-center gap-2 mb-1.5">
+                                <div className="flex flex-wrap items-center gap-2 mb-1.5">
                                     <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-semibold">
                                         <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Codebase Evaluated & Verified
                                     </Badge>
-                                    {submission.githubEvaluation.primaryLanguage && (
+                                    {gh.primaryLanguage && (
                                         <Badge variant="outline" className="border-neutral-700 text-neutral-300 text-xs">
-                                            {submission.githubEvaluation.primaryLanguage}
+                                            {gh.primaryLanguage}
                                         </Badge>
                                     )}
-                                    {submission.githubEvaluation.defaultBranch && (
+                                    {gh.defaultBranch && (
                                         <span className="text-[11px] text-neutral-500 flex items-center gap-1">
-                                            <GitBranch className="w-3 h-3" /> {submission.githubEvaluation.defaultBranch}
+                                            <GitBranch className="w-3 h-3" /> {gh.defaultBranch}
                                         </span>
                                     )}
                                 </div>
                                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
                                     <Github className="w-5 h-5 text-indigo-400" />
                                     <a
-                                        href={submission.githubEvaluation.repoUrl || team.githubUrl}
+                                        href={gh.repoUrl || team.githubUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="hover:text-indigo-400 hover:underline flex items-center gap-1.5"
                                     >
-                                        {submission.githubEvaluation.repoOwner ? `${submission.githubEvaluation.repoOwner}/${submission.githubEvaluation.repoName}` : (team.githubUrl || 'Linked Repository')}
+                                        {gh.repoOwner ? `${gh.repoOwner}/${gh.repoName}` : (team.githubUrl || 'Linked Repository')}
                                         <ExternalLink className="w-4 h-4 opacity-70" />
                                     </a>
                                 </h3>
                                 <p className="text-xs text-neutral-500 mt-1">
-                                    Analyzed on {submission.githubEvaluation.analyzedAt ? new Date(submission.githubEvaluation.analyzedAt).toLocaleString() : 'Round 2'}
+                                    Analyzed on {gh.analyzedAt ? new Date(gh.analyzedAt).toLocaleString() : 'Recent Audit'}
                                 </p>
                             </div>
 
@@ -815,7 +424,7 @@ export default function ParticipantDashboard() {
                                 <div className="flex flex-col items-center bg-indigo-950/40 border border-indigo-500/40 px-5 py-3 rounded-xl">
                                     <span className="text-[10px] text-indigo-300 font-semibold uppercase tracking-wider">Technical Score</span>
                                     <span className="text-3xl font-extrabold text-white mt-0.5">
-                                        {submission.githubEvaluation.technicalScore ?? 0}
+                                        {gh.technicalScore ?? 0}
                                         <span className="text-xs text-neutral-500 font-normal"> / 100</span>
                                     </span>
                                 </div>
@@ -827,44 +436,53 @@ export default function ParticipantDashboard() {
                                 >
                                     Update Repo
                                 </Button>
+                                <Button
+                                    size="sm"
+                                    onClick={() => handleCodeSubmit(undefined, true)}
+                                    disabled={isSubmittingCode}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs"
+                                >
+                                    {isSubmittingCode ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
+                                    Re-Evaluate
+                                </Button>
                             </div>
                         </div>
 
                         {/* 5-Part Rubric Breakdown */}
-                        {submission.githubEvaluation.breakdown && (
+                        {gh.breakdown && (
                             <div>
                                 <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                                    <Target className="w-4 h-4 text-indigo-400" /> Technical Rubric Breakdown
+                                    <Target className="w-4 h-4 text-indigo-400" /> 100-Point Technical Rubric Breakdown
                                 </h4>
                                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                                     <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
                                         <span className="text-[11px] text-neutral-400 block truncate" title="Code Quality & Maintainability">Code Quality</span>
                                         <span className="text-lg font-bold text-white mt-0.5 block">
-                                            {submission.githubEvaluation.breakdown.codeQualityMaintainability ?? submission.githubEvaluation.breakdown.codeQuality} <span className="text-xs text-neutral-500 font-normal">/ 25</span>
+                                            {gh.breakdown.codeQualityMaintainability ?? gh.breakdown.codeQuality} <span className="text-xs text-neutral-500 font-normal">/ 25</span>
                                         </span>
                                     </div>
                                     <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
                                         <span className="text-[11px] text-neutral-400 block truncate" title="Technical Implementation">Implementation</span>
                                         <span className="text-lg font-bold text-white mt-0.5 block">
-                                            {submission.githubEvaluation.breakdown.technicalImplementation} <span className="text-xs text-neutral-500 font-normal">/ 25</span>
+                                            {gh.breakdown.technicalImplementation} <span className="text-xs text-neutral-500 font-normal">/ 25</span>
                                         </span>
                                     </div>
                                     <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
                                         <span className="text-[11px] text-neutral-400 block truncate" title="Architecture & Project Structure">Architecture</span>
                                         <span className="text-lg font-bold text-white mt-0.5 block">
-                                            {submission.githubEvaluation.breakdown.architectureProjectStructure ?? submission.githubEvaluation.breakdown.architecture} <span className="text-xs text-neutral-500 font-normal">/ 20</span>
+                                            {gh.breakdown.architectureProjectStructure ?? gh.breakdown.architecture} <span className="text-xs text-neutral-500 font-normal">/ 20</span>
                                         </span>
                                     </div>
                                     <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
                                         <span className="text-[11px] text-neutral-400 block truncate" title="Testing & Error Handling">Testing & Errors</span>
                                         <span className="text-lg font-bold text-white mt-0.5 block">
-                                            {submission.githubEvaluation.breakdown.testingErrorHandling ?? submission.githubEvaluation.breakdown.documentationAndTesting} <span className="text-xs text-neutral-500 font-normal">/ 15</span>
+                                            {gh.breakdown.testingErrorHandling ?? gh.breakdown.documentationAndTesting} <span className="text-xs text-neutral-500 font-normal">/ 15</span>
                                         </span>
                                     </div>
                                     <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
                                         <span className="text-[11px] text-neutral-400 block truncate" title="Documentation & Development Practices">Docs & Git</span>
                                         <span className="text-lg font-bold text-white mt-0.5 block">
-                                            {submission.githubEvaluation.breakdown.documentationDevPractices ?? submission.githubEvaluation.breakdown.developmentActivity} <span className="text-xs text-neutral-500 font-normal">/ 15</span>
+                                            {gh.breakdown.documentationDevPractices ?? gh.breakdown.developmentActivity} <span className="text-xs text-neutral-500 font-normal">/ 15</span>
                                         </span>
                                     </div>
                                 </div>
@@ -872,59 +490,59 @@ export default function ParticipantDashboard() {
                         )}
 
                         {/* Executive Summary */}
-                        {submission.githubEvaluation.summary && (
+                        {gh.summary && (
                             <div className="bg-neutral-950/50 border border-neutral-800/80 p-4 rounded-xl">
                                 <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                     <Brain className="w-4 h-4 text-indigo-400" /> Technical Assessment Summary
                                 </h4>
                                 <p className="text-sm text-neutral-300 leading-relaxed">
-                                    {submission.githubEvaluation.summary}
+                                    {gh.summary}
                                 </p>
                             </div>
                         )}
 
-                        {/* Detailed Assessments */}
+                        {/* Detailed Observations */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {submission.githubEvaluation.architectureAssessment && (
+                            {(gh.architectureObservations || gh.architectureAssessment) && (
                                 <div className="bg-neutral-950/40 border border-neutral-800 p-4 rounded-xl space-y-1">
                                     <h5 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
-                                        <Layers className="w-3.5 h-3.5" /> Architecture & Structure
+                                        <Layers className="w-3.5 h-3.5" /> Architecture & Modularity
                                     </h5>
                                     <p className="text-xs text-neutral-300 leading-relaxed">
-                                        {submission.githubEvaluation.architectureAssessment}
+                                        {gh.architectureObservations || gh.architectureAssessment}
                                     </p>
                                 </div>
                             )}
 
-                            {submission.githubEvaluation.codeQualityAssessment && (
+                            {(gh.codeQualityObservations || gh.codeQualityAssessment) && (
                                 <div className="bg-neutral-950/40 border border-neutral-800 p-4 rounded-xl space-y-1">
                                     <h5 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
                                         <Code2 className="w-3.5 h-3.5" /> Code Quality & Hygiene
                                     </h5>
                                     <p className="text-xs text-neutral-300 leading-relaxed">
-                                        {submission.githubEvaluation.codeQualityAssessment}
+                                        {gh.codeQualityObservations || gh.codeQualityAssessment}
                                     </p>
                                 </div>
                             )}
 
-                            {submission.githubEvaluation.testingAssessment && (
+                            {(gh.testingObservations || gh.testingAssessment) && (
                                 <div className="bg-neutral-950/40 border border-neutral-800 p-4 rounded-xl space-y-1">
                                     <h5 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
-                                        <Activity className="w-3.5 h-3.5" /> Automated Testing Evidence
+                                        <Activity className="w-3.5 h-3.5" /> Testing & Error Handling
                                     </h5>
                                     <p className="text-xs text-neutral-300 leading-relaxed">
-                                        {submission.githubEvaluation.testingAssessment}
+                                        {gh.testingObservations || gh.testingAssessment}
                                     </p>
                                 </div>
                             )}
 
-                            {submission.githubEvaluation.documentationAssessment && (
+                            {gh.securityObservations && (
                                 <div className="bg-neutral-950/40 border border-neutral-800 p-4 rounded-xl space-y-1">
                                     <h5 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
-                                        <FileText className="w-3.5 h-3.5" /> Documentation & Setup
+                                        <ShieldCheck className="w-3.5 h-3.5" /> Security & Static Safety
                                     </h5>
                                     <p className="text-xs text-neutral-300 leading-relaxed">
-                                        {submission.githubEvaluation.documentationAssessment}
+                                        {gh.securityObservations}
                                     </p>
                                 </div>
                             )}
@@ -932,13 +550,13 @@ export default function ParticipantDashboard() {
 
                         {/* Strengths & Weaknesses */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {submission.githubEvaluation.strengths && submission.githubEvaluation.strengths.length > 0 && (
+                            {gh.strengths && gh.strengths.length > 0 && (
                                 <div className="border border-emerald-500/20 bg-emerald-950/10 p-4 rounded-xl space-y-2">
                                     <h5 className="text-xs font-bold text-emerald-400 uppercase flex items-center gap-1.5">
                                         <CheckCircle2 className="w-4 h-4" /> Technical Strengths
                                     </h5>
                                     <ul className="space-y-1.5">
-                                        {submission.githubEvaluation.strengths.map((str, i) => (
+                                        {gh.strengths.map((str, i) => (
                                             <li key={i} className="text-xs text-neutral-300 flex items-start gap-2">
                                                 <span className="text-emerald-400">•</span> {str}
                                             </li>
@@ -947,13 +565,13 @@ export default function ParticipantDashboard() {
                                 </div>
                             )}
 
-                            {submission.githubEvaluation.weaknesses && submission.githubEvaluation.weaknesses.length > 0 && (
+                            {gh.weaknesses && gh.weaknesses.length > 0 && (
                                 <div className="border border-red-500/20 bg-red-950/10 p-4 rounded-xl space-y-2">
                                     <h5 className="text-xs font-bold text-red-400 uppercase flex items-center gap-1.5">
                                         <AlertTriangle className="w-4 h-4" /> Technical Weaknesses & Gaps
                                     </h5>
                                     <ul className="space-y-1.5">
-                                        {submission.githubEvaluation.weaknesses.map((w, i) => (
+                                        {gh.weaknesses.map((w, i) => (
                                             <li key={i} className="text-xs text-neutral-300 flex items-start gap-2">
                                                 <span className="text-red-400">•</span> {w}
                                             </li>
@@ -962,71 +580,115 @@ export default function ParticipantDashboard() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Improvement Recommendations */}
+                        {gh.improvementRecommendations && gh.improvementRecommendations.length > 0 && (
+                            <div className="border border-indigo-500/20 bg-indigo-950/10 p-4 rounded-xl space-y-2">
+                                <h5 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
+                                    <Wrench className="w-4 h-4 text-indigo-400" /> Actionable Recommendations for Judges
+                                </h5>
+                                <ul className="space-y-1">
+                                    {gh.improvementRecommendations.map((rec, i) => (
+                                        <li key={i} className="text-xs text-neutral-300 flex items-start gap-2">
+                                            <span className="text-indigo-400">→</span> {rec}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* Transparent Files Inspected */}
+                        {gh.filesInspected && gh.filesInspected.length > 0 && (
+                            <div className="bg-neutral-950/60 border border-neutral-800 p-3 rounded-xl text-xs space-y-1">
+                                <span className="text-[11px] font-semibold text-neutral-400 block">
+                                    Files Analyzed ({gh.filesInspected.length})
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {gh.filesInspected.map((file, i) => (
+                                        <span key={i} className="px-2 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-[10px] font-mono text-neutral-300">
+                                            {file}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </Card>
                 ) : (
-                    <Card className="border-indigo-500/40 bg-indigo-950/20 backdrop-blur-md">
+                    <Card className="border-indigo-500/40 bg-neutral-900/60 backdrop-blur-md shadow-xl">
                         <CardHeader>
                             <div className="flex items-center justify-between">
-                                <CardTitle className="flex items-center gap-2 text-indigo-400">
-                                    <Github className="w-5 h-5" /> Round 2: GitHub Repository Submission
+                                <CardTitle className="flex items-center gap-2 text-white text-xl">
+                                    <Github className="w-6 h-6 text-primary" /> Submit Public GitHub Repository
                                 </CardTitle>
-                                {submission?.githubEvaluation?.status === 'FAILED' && (
+                                {gh?.status === 'FAILED' && (
                                     <Badge variant="destructive" className="bg-red-900/40 text-red-200 border-red-800">
-                                        Previous Analysis Failed
+                                        Previous Evaluation Failed
                                     </Badge>
                                 )}
                             </div>
-                            <CardDescription className="text-indigo-200/70 text-xs">
-                                Submit your team&apos;s public GitHub repository. Our AI inspects directory architecture, dependencies, actual source files, test suites, and commit cadence.
+                            <CardDescription className="text-neutral-400 text-xs mt-1">
+                                Submit your team&apos;s public GitHub repository. Gemini AI will inspect repository architecture, dependencies, actual source files, test suites, and commit cadence against our 100-point technical rubric.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            {submission?.githubEvaluation?.status === 'FAILED' && submission.githubEvaluation.error && (
+                        <CardContent className="space-y-5">
+                            {gh?.status === 'FAILED' && gh.error && (
                                 <div className="p-3 bg-red-950/40 border border-red-500/40 rounded-lg text-xs text-red-300 flex items-center gap-2">
                                     <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
-                                    <span>Error: {submission.githubEvaluation.error}</span>
+                                    <span>Error: {gh.error}</span>
                                 </div>
                             )}
 
-                            <form onSubmit={(e) => handleCodeSubmit(e, false)} className="space-y-3">
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                    <Input
-                                        type="url"
-                                        required
-                                        placeholder="https://github.com/organization/project"
-                                        value={githubUrl}
-                                        onChange={(e) => setGithubUrl(e.target.value)}
-                                        className="bg-neutral-900 border-indigo-900/50 flex-1 text-white text-sm"
-                                    />
-                                    <Button
-                                        type="submit"
-                                        disabled={isSubmittingCode || !githubUrl}
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shrink-0"
-                                    >
-                                        {isSubmittingCode ? (
-                                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyzing...</>
-                                        ) : (
-                                            'Submit Code for AI Audit'
-                                        )}
-                                    </Button>
-                                    {showEditRepo && (
+                            <form onSubmit={(e) => handleCodeSubmit(e, false)} className="space-y-4">
+                                <div className="space-y-2">
+                                    <label htmlFor="repoInput" className="text-xs font-semibold text-neutral-300">
+                                        Public GitHub Repository URL
+                                    </label>
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <Input
+                                            id="repoInput"
+                                            type="url"
+                                            required
+                                            placeholder="https://github.com/organization/project"
+                                            value={githubUrl}
+                                            onChange={(e) => setGithubUrl(e.target.value)}
+                                            className="bg-neutral-950 border-neutral-700 flex-1 text-white text-sm h-11"
+                                        />
                                         <Button
-                                            type="button"
-                                            variant="ghost"
-                                            onClick={() => setShowEditRepo(false)}
-                                            className="text-neutral-400 hover:text-white"
+                                            type="submit"
+                                            disabled={isSubmittingCode || !githubUrl.trim()}
+                                            className="bg-primary hover:bg-primary/90 text-black font-bold text-sm h-11 px-6 shrink-0 shadow-lg shadow-primary/20"
                                         >
-                                            Cancel
+                                            {isSubmittingCode ? (
+                                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Auditing Codebase...</>
+                                            ) : (
+                                                'Submit Code for AI Audit'
+                                            )}
                                         </Button>
-                                    )}
+                                        {showEditRepo && (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                onClick={() => setShowEditRepo(false)}
+                                                className="text-neutral-400 hover:text-white h-11"
+                                            >
+                                                Cancel
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
-                                <p className="text-[11px] text-neutral-400 leading-tight">
-                                    💡 <strong>Requirements:</strong> The repository must be public on github.com. Make sure it contains your project code, README setup instructions, and commit history.
-                                </p>
+
+                                <div className="p-4 bg-neutral-950/60 rounded-xl border border-neutral-800 text-xs text-neutral-400 space-y-1.5">
+                                    <p className="font-semibold text-white flex items-center gap-1.5">
+                                        <ShieldCheck className="w-4 h-4 text-emerald-400" /> What will the AI inspect?
+                                    </p>
+                                    <p className="leading-relaxed">
+                                        README setup instructions, dependency manifests (e.g. <code>package.json</code>, <code>requirements.txt</code>), source code structure, error handling, test files, and genuine commit activity. Zero code execution is performed.
+                                    </p>
+                                </div>
                             </form>
 
                             {codeSubmitStatus.message && (
-                                <p className={`text-xs ${codeSubmitStatus.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
+                                <p className={`text-xs ${codeSubmitStatus.type === 'error' ? 'text-red-400' : 'text-emerald-400'}`}>
                                     {codeSubmitStatus.message}
                                 </p>
                             )}

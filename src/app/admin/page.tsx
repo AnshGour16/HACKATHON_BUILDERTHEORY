@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import {
     ExternalLink, RefreshCw, Download, Search, Trophy, Users,
     BarChart2, AlertTriangle, Sparkles, Filter, CheckCircle2, Sliders, ChevronDown, ChevronUp,
-    Github, Loader2, Eye, X, Award, Crown
+    Github, Loader2, Eye, X, Award, Crown, ShieldCheck
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -102,11 +102,11 @@ export default function AdminDashboard() {
     // Interactive Filters
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTrack, setSelectedTrack] = useState('ALL');
-    const [sortBy, setSortBy] = useState<'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST' | 'FINAL_RANK'>('FINAL_RANK');
-    const [shortlistStatusFilter, setShortlistStatusFilter] = useState<'ALL' | 'SHORTLISTED' | 'NOT_SHORTLISTED' | 'FINAL_RANKING'>('FINAL_RANKING');
+    const [sortBy, setSortBy] = useState<'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST' | 'FINAL_RANK'>('SCORE_DESC');
+    const [shortlistStatusFilter, setShortlistStatusFilter] = useState<'ALL' | 'EVALUATED' | 'PENDING' | 'SHORTLISTED' | 'NOT_SHORTLISTED' | 'FINAL_RANKING'>('ALL');
 
-    // Organizer Shortlisting Controls State
-    const [showShortlistPanel, setShowShortlistPanel] = useState(true);
+    // Organizer Legacy Shortlisting Controls State
+    const [showShortlistPanel, setShowShortlistPanel] = useState(false);
     const [shortlistMode, setShortlistMode] = useState<'OVERALL' | 'THEME_WISE'>('OVERALL');
     const [shortlistLimit, setShortlistLimit] = useState<number>(25);
     const [themeQuotas, setThemeQuotas] = useState<Record<string, number>>({});
@@ -123,8 +123,8 @@ export default function AdminDashboard() {
 
     // Phase 6: Final Composite Ranking & Winner Selection State
     const [showFinalPanel, setShowFinalPanel] = useState(true);
-    const [pitchWeight, setPitchWeight] = useState<number>(40);
-    const [githubWeight, setGithubWeight] = useState<number>(60);
+    const [pitchWeight, setPitchWeight] = useState<number>(0);
+    const [githubWeight, setGithubWeight] = useState<number>(100);
     const [winnerCount, setWinnerCount] = useState<number>(3);
     const [finalPreviewData, setFinalPreviewData] = useState<IFinalRankingPreviewResult | null>(null);
     const [isPreviewingFinal, setIsPreviewingFinal] = useState(false);
@@ -235,8 +235,8 @@ export default function AdminDashboard() {
     // Synchronize hackathon weights when active hackathon changes
     useEffect(() => {
         if (activeHackathon) {
-            if (activeHackathon.pitchWeight !== undefined) setPitchWeight(activeHackathon.pitchWeight);
-            if (activeHackathon.githubWeight !== undefined) setGithubWeight(activeHackathon.githubWeight);
+            setPitchWeight(0);
+            setGithubWeight(100);
             if (activeHackathon.winnerCount !== undefined) setWinnerCount(activeHackathon.winnerCount);
         }
     }, [activeHackathon]);
@@ -264,12 +264,14 @@ export default function AdminDashboard() {
         let winnersCount = 0;
 
         submissions.forEach((sub) => {
-            const score = sub.aiEvaluation?.totalScore || 0;
+            const score = typeof sub.githubEvaluation?.technicalScore === 'number'
+                ? sub.githubEvaluation.technicalScore
+                : (typeof sub.team?.githubScore === 'number' ? sub.team.githubScore : 0);
             if (score > highest) {
                 highest = score;
                 topTeam = sub.team?.name || 'Unknown';
             }
-            if (sub.aiEvaluation?.totalScore !== undefined) {
+            if (typeof sub.githubEvaluation?.technicalScore === 'number' || typeof sub.team?.githubScore === 'number') {
                 totalScoreSum += score;
                 evaluatedCount++;
             }
@@ -278,10 +280,10 @@ export default function AdminDashboard() {
             }
             if (sub.team?.isShortlisted) {
                 persistentShortlistedCount++;
+            }
+            if (sub.githubEvaluation?.repoUrl || sub.team?.githubUrl) {
+                round2SubmittedCount++;
                 round2ShortlistedCount++;
-                if (sub.githubEvaluation?.repoUrl || sub.team?.githubUrl) {
-                    round2SubmittedCount++;
-                }
             }
             if (sub.githubEvaluation?.status === 'EVALUATED') {
                 round2EvaluatedCount++;
@@ -297,7 +299,7 @@ export default function AdminDashboard() {
         });
 
         const average = evaluatedCount > 0 ? Math.round(totalScoreSum / evaluatedCount) : 0;
-        const round2PendingCount = Math.max(0, round2ShortlistedCount - round2SubmittedCount);
+        const round2PendingCount = Math.max(0, total - round2EvaluatedCount);
 
         return {
             total,
@@ -331,9 +333,10 @@ export default function AdminDashboard() {
 
                 const matchesShortlistFilter =
                     shortlistStatusFilter === 'ALL' ||
-                    (shortlistStatusFilter === 'SHORTLISTED' && sub.team?.isShortlisted) ||
-                    (shortlistStatusFilter === 'NOT_SHORTLISTED' && !sub.team?.isShortlisted) ||
-                    (shortlistStatusFilter === 'FINAL_RANKING' && sub.team?.isShortlisted && (sub.finalScore !== undefined || sub.team?.finalScore !== undefined));
+                    (shortlistStatusFilter === 'EVALUATED' && (sub.githubEvaluation?.status === 'EVALUATED' || typeof sub.githubEvaluation?.technicalScore === 'number' || typeof sub.team?.githubScore === 'number')) ||
+                    (shortlistStatusFilter === 'PENDING' && sub.githubEvaluation?.status !== 'EVALUATED' && typeof sub.githubEvaluation?.technicalScore !== 'number' && typeof sub.team?.githubScore !== 'number') ||
+                    (shortlistStatusFilter === 'SHORTLISTED' && (sub.team?.isShortlisted || sub.githubEvaluation?.status === 'EVALUATED')) ||
+                    (shortlistStatusFilter === 'FINAL_RANKING' && (sub.finalScore !== undefined || sub.team?.finalScore !== undefined || sub.finalRank !== undefined || sub.team?.finalRank !== undefined));
 
                 return matchesSearch && matchesTrack && matchesShortlistFilter;
             })
@@ -346,8 +349,12 @@ export default function AdminDashboard() {
                     const scoreB = b.finalScore ?? b.team?.finalScore ?? -1;
                     return scoreB - scoreA;
                 }
-                const scoreA = a.aiEvaluation?.totalScore ?? -1;
-                const scoreB = b.aiEvaluation?.totalScore ?? -1;
+                const scoreA = typeof a.githubEvaluation?.technicalScore === 'number'
+                    ? a.githubEvaluation.technicalScore
+                    : (typeof a.team?.githubScore === 'number' ? a.team.githubScore : (a.finalScore ?? a.team?.finalScore ?? -1));
+                const scoreB = typeof b.githubEvaluation?.technicalScore === 'number'
+                    ? b.githubEvaluation.technicalScore
+                    : (typeof b.team?.githubScore === 'number' ? b.team.githubScore : (b.finalScore ?? b.team?.finalScore ?? -1));
 
                 if (sortBy === 'SCORE_DESC') return scoreB - scoreA;
                 if (sortBy === 'SCORE_ASC') return scoreA - scoreB;
@@ -723,12 +730,12 @@ export default function AdminDashboard() {
                     <Card className="bg-neutral-900/40 border-neutral-800/80 backdrop-blur-sm">
                         <CardContent className="p-4 flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
-                                <Trophy className="w-5 h-5" />
+                                <Github className="w-5 h-5" />
                             </div>
                             <div>
-                                <span className="text-xs text-neutral-400 font-medium">Round 2 Shortlist</span>
+                                <span className="text-xs text-neutral-400 font-medium">Codebases Evaluated</span>
                                 <h3 className="text-xl font-bold text-white">
-                                    {stats.persistentShortlistedCount} <span className="text-xs font-normal text-emerald-400">Teams</span>
+                                    {stats.round2EvaluatedCount} <span className="text-xs font-normal text-emerald-400">Repositories</span>
                                 </h3>
                             </div>
                         </CardContent>
@@ -740,7 +747,7 @@ export default function AdminDashboard() {
                                 <BarChart2 className="w-5 h-5" />
                             </div>
                             <div>
-                                <span className="text-xs text-neutral-400 font-medium">Final Composite Ranked</span>
+                                <span className="text-xs text-neutral-400 font-medium">Leaderboard Ranked</span>
                                 <h3 className="text-xl font-bold text-white">
                                     {stats.finalRankedCount} <span className="text-xs font-normal text-indigo-300">Teams</span>
                                 </h3>
@@ -1138,85 +1145,28 @@ export default function AdminDashboard() {
                                 <div className="space-y-4 bg-neutral-900/50 p-4 rounded-xl border border-neutral-800">
                                     <div className="flex items-center justify-between">
                                         <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
-                                            <Sliders className="w-3.5 h-3.5 text-amber-400" /> Composite Weight Settings
+                                            <Sliders className="w-3.5 h-3.5 text-amber-400" /> Repository Ranking Configuration
                                         </h4>
                                         <Badge
                                             variant="outline"
-                                            className={`text-[10px] font-mono font-semibold ${pitchWeight + githubWeight === 100 ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' : 'border-red-500/40 text-red-400 bg-red-500/10'}`}
+                                            className="text-[10px] font-mono font-semibold border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
                                         >
-                                            {pitchWeight + githubWeight === 100 ? '✓ Total: 100%' : `⚠ Invalid: ${pitchWeight + githubWeight}% (Must equal 100%)`}
+                                            ✓ 100% Repository Score
                                         </Badge>
                                     </div>
 
-                                    {/* Presets */}
-                                    <div className="flex flex-wrap gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => { setPitchWeight(40); setGithubWeight(60); setFinalPreviewData(null); }}
-                                            className={`px-2.5 py-1 text-xs rounded-lg border transition-all ${pitchWeight === 40 && githubWeight === 60 ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'}`}
-                                        >
-                                            40:60 (Default)
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => { setPitchWeight(50); setGithubWeight(50); setFinalPreviewData(null); }}
-                                            className={`px-2.5 py-1 text-xs rounded-lg border transition-all ${pitchWeight === 50 && githubWeight === 50 ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'}`}
-                                        >
-                                            50:50 (Balanced)
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => { setPitchWeight(60); setGithubWeight(40); setFinalPreviewData(null); }}
-                                            className={`px-2.5 py-1 text-xs rounded-lg border transition-all ${pitchWeight === 60 && githubWeight === 40 ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'}`}
-                                        >
-                                            60:40 (Deck Focused)
-                                        </button>
-                                    </div>
-
-                                    {/* Inputs */}
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="bg-neutral-950 p-3 rounded-lg border border-neutral-800 space-y-1">
-                                            <label className="text-[11px] font-medium text-neutral-400 block">Round 1 Pitch Weight</label>
-                                            <div className="flex items-center gap-1.5">
-                                                <Input
-                                                    type="number"
-                                                    min={0}
-                                                    max={100}
-                                                    value={pitchWeight}
-                                                    onChange={(e) => {
-                                                        const p = Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0));
-                                                        setPitchWeight(p);
-                                                        setFinalPreviewData(null);
-                                                    }}
-                                                    className="h-8 text-xs bg-neutral-900 border-neutral-700 text-white font-bold"
-                                                />
-                                                <span className="text-xs text-neutral-400 font-bold">%</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-neutral-950 p-3 rounded-lg border border-neutral-800 space-y-1">
-                                            <label className="text-[11px] font-medium text-neutral-400 block">Round 2 GitHub Weight</label>
-                                            <div className="flex items-center gap-1.5">
-                                                <Input
-                                                    type="number"
-                                                    min={0}
-                                                    max={100}
-                                                    value={githubWeight}
-                                                    onChange={(e) => {
-                                                        const g = Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0));
-                                                        setGithubWeight(g);
-                                                        setFinalPreviewData(null);
-                                                    }}
-                                                    className="h-8 text-xs bg-neutral-900 border-neutral-700 text-white font-bold"
-                                                />
-                                                <span className="text-xs text-neutral-400 font-bold">%</span>
-                                            </div>
-                                        </div>
+                                    <div className="p-3 bg-neutral-950 rounded-lg border border-neutral-800 space-y-1.5 text-xs text-neutral-300">
+                                        <p className="font-semibold text-white flex items-center gap-1.5">
+                                            <ShieldCheck className="w-4 h-4 text-emerald-400" /> Pure Codebase Evaluation Ranking
+                                        </p>
+                                        <p className="text-neutral-400 leading-relaxed text-[11px]">
+                                            Final rankings and winner determinations are computed server-side directly from Gemini&apos;s 100-point technical rubric (Code Quality 25, Implementation 25, Architecture 20, Testing 15, Docs &amp; Git 15).
+                                        </p>
                                     </div>
 
                                     {/* Formula Visualizer */}
                                     <div className="bg-neutral-950/80 p-2.5 rounded-lg border border-neutral-800 text-xs font-mono text-neutral-300">
-                                        <span className="text-amber-400 font-bold">Formula:</span> Final Score = (Pitch × {pitchWeight / 100}) + (GitHub × {githubWeight / 100})
+                                        <span className="text-amber-400 font-bold">Scoring Basis:</span> Final Score = 100% GitHub Technical Audit Score
                                     </div>
 
                                     {/* Calculate Action Buttons */}
@@ -1225,22 +1175,22 @@ export default function AdminDashboard() {
                                             type="button"
                                             variant="outline"
                                             size="sm"
-                                            disabled={isPreviewingFinal || isCalculatingFinal || pitchWeight + githubWeight !== 100}
+                                            disabled={isPreviewingFinal || isCalculatingFinal}
                                             onClick={handlePreviewFinalRankings}
                                             className="text-xs h-8 border-neutral-700 text-white hover:bg-neutral-800"
                                         >
                                             {isPreviewingFinal ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Eye className="w-3.5 h-3.5 mr-1.5" />}
-                                            Preview Rankings
+                                            Preview Repository Rankings
                                         </Button>
                                         <Button
                                             type="button"
                                             size="sm"
-                                            disabled={isCalculatingFinal || pitchWeight + githubWeight !== 100}
+                                            disabled={isCalculatingFinal}
                                             onClick={handleCalculateFinalRankings}
                                             className="text-xs h-8 bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-md shadow-amber-500/20"
                                         >
                                             {isCalculatingFinal ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Crown className="w-3.5 h-3.5 mr-1.5" />}
-                                            Calculate & Save Rankings
+                                            Calculate &amp; Save Repository Rankings
                                         </Button>
                                     </div>
                                 </div>
@@ -1396,10 +1346,7 @@ export default function AdminDashboard() {
 
                                                     <div className="flex items-center gap-3">
                                                         <span className="text-[11px] text-neutral-400">
-                                                            Pitch: <strong className="text-white">{rt.pitchScore}</strong>
-                                                        </span>
-                                                        <span className="text-[11px] text-neutral-400">
-                                                            Code: <strong className="text-white">{rt.githubScore}</strong>
+                                                            Code Score: <strong className="text-white">{rt.githubScore}</strong>
                                                         </span>
                                                         <div className="bg-neutral-900 px-2 py-0.5 rounded border border-neutral-700">
                                                             <span className="font-extrabold text-amber-300 text-xs">
@@ -1430,19 +1377,19 @@ export default function AdminDashboard() {
                             />
                         </div>
 
-                        {/* Database Shortlist Filter Tabs */}
+                        {/* Repository Evaluation Filter Tabs */}
                         <div className="flex items-center bg-neutral-950 p-1 rounded-lg border border-neutral-800">
                             <button
                                 onClick={() => setShortlistStatusFilter('ALL')}
                                 className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${shortlistStatusFilter === 'ALL' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
                             >
-                                All Teams ({submissions.length})
+                                All Repos ({submissions.length})
                             </button>
                             <button
-                                onClick={() => setShortlistStatusFilter('SHORTLISTED')}
-                                className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${shortlistStatusFilter === 'SHORTLISTED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm' : 'text-neutral-400 hover:text-white'}`}
+                                onClick={() => setShortlistStatusFilter('EVALUATED')}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${shortlistStatusFilter === 'EVALUATED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm' : 'text-neutral-400 hover:text-white'}`}
                             >
-                                <Trophy className="w-3.5 h-3.5 text-emerald-400" /> Shortlisted ({stats.persistentShortlistedCount})
+                                <Github className="w-3.5 h-3.5 text-emerald-400" /> Evaluated ({stats.round2EvaluatedCount})
                             </button>
                             <button
                                 onClick={() => {
@@ -1451,13 +1398,13 @@ export default function AdminDashboard() {
                                 }}
                                 className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${shortlistStatusFilter === 'FINAL_RANKING' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm' : 'text-neutral-400 hover:text-white'}`}
                             >
-                                <Crown className="w-3.5 h-3.5 text-amber-400" /> Final Rankings ({stats.finalRankedCount})
+                                <Crown className="w-3.5 h-3.5 text-amber-400" /> Leaderboard ({stats.finalRankedCount})
                             </button>
                             <button
-                                onClick={() => setShortlistStatusFilter('NOT_SHORTLISTED')}
-                                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${shortlistStatusFilter === 'NOT_SHORTLISTED' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
+                                onClick={() => setShortlistStatusFilter('PENDING')}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${shortlistStatusFilter === 'PENDING' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
                             >
-                                Not Shortlisted
+                                Pending ({stats.round2PendingCount})
                             </button>
                         </div>
                     </div>
@@ -1498,7 +1445,7 @@ export default function AdminDashboard() {
                     <CardHeader className="py-4 border-b border-neutral-800/60 flex flex-row items-center justify-between">
                         <div className="flex items-center gap-2">
                             <CardTitle className="text-lg font-bold">
-                                {shortlistStatusFilter === 'FINAL_RANKING' ? '👑 Official Final Composite Leaderboard' : shortlistStatusFilter === 'SHORTLISTED' ? '🏆 Round 2 Shortlisted Teams' : 'Ranked Submissions'}
+                                {shortlistStatusFilter === 'FINAL_RANKING' ? '👑 Official Final Leaderboard' : shortlistStatusFilter === 'EVALUATED' ? '🛡️ Evaluated GitHub Repositories' : 'Ranked Repository Submissions'}
                             </CardTitle>
                             <Badge variant="outline" className="text-xs font-medium text-neutral-400 border-neutral-800">
                                 Showing {filteredSubmissions.length} of {submissions.length} teams
@@ -1526,18 +1473,16 @@ export default function AdminDashboard() {
                                 <TableHeader className="bg-neutral-900/40">
                                     <TableRow className="border-neutral-800">
                                         <TableHead className="w-14 text-center">Rank</TableHead>
-                                        <TableHead>Team & GitHub Repository</TableHead>
-                                        <TableHead className="hidden md:table-cell">Project & Track</TableHead>
-                                        <TableHead>Status & Podium</TableHead>
+                                        <TableHead>Team &amp; GitHub Repository</TableHead>
+                                        <TableHead className="hidden md:table-cell">Project &amp; Track</TableHead>
+                                        <TableHead>Evaluation Status</TableHead>
                                         <TableHead className="text-center">Repository Score</TableHead>
-                                        <TableHead className="text-center">Pitch (R1)</TableHead>
                                         <TableHead className="text-right">Ranked Score</TableHead>
                                         <TableHead className="text-right">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredSubmissions.map((sub, idx) => {
-                                        const pitchScore = sub.aiEvaluation?.totalScore;
                                         const codeScore = sub.githubEvaluation?.technicalScore;
                                         const isShortlisted = Boolean(sub.team?.isShortlisted);
                                         const finalRank = sub.finalRank ?? sub.team?.finalRank;
@@ -1674,15 +1619,6 @@ export default function AdminDashboard() {
                                                         </Button>
                                                     ) : (
                                                         <span className="text-neutral-600 text-xs">—</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center font-bold text-xs">
-                                                    {pitchScore !== undefined ? (
-                                                        <span className="text-neutral-300 font-medium">
-                                                            {pitchScore} <span className="text-[10px] text-neutral-500 font-normal">/100</span>
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-neutral-600">—</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
