@@ -8,7 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, User, Trophy, Plus, Trash2, ArrowRight, Sparkles } from 'lucide-react';
+import {
+    Users, User, Trophy, Plus, Trash2, ArrowRight,
+    Sparkles, Briefcase, Building2, ShieldCheck, CheckCircle2
+} from 'lucide-react';
 import Link from 'next/link';
 
 interface IHackathon {
@@ -25,39 +28,41 @@ interface IMemberInput {
     college: string;
 }
 
-export default function RegisterTeamPage() {
+export default function RegisterPage() {
     const router = useRouter();
-    const [hackathons, setHackathons] = useState<IHackathon[]>([]);
-    const [selectedHackathonId, setSelectedHackathonId] = useState('');
-    const [loadingHackathons, setLoadingHackathons] = useState(true);
+    const [registrationRole, setRegistrationRole] = useState<'CANDIDATE' | 'RECRUITER' | 'TEAM'>('CANDIDATE');
 
-    // Form Fields - Leader
-    const [leaderName, setLeaderName] = useState('');
+    // Candidate / Recruiter Fields
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [leaderPhone, setLeaderPhone] = useState('');
-    const [college, setCollege] = useState('');
+    const [phone, setPhone] = useState('');
+    const [companyName, setCompanyName] = useState('');
+    const [title, setTitle] = useState('');
+    const [headline, setHeadline] = useState('');
 
-    // Form Fields - Team & Project
+    // Hackathon Team Leader Fields
+    const [hackathons, setHackathons] = useState<IHackathon[]>([]);
+    const [selectedHackathonId, setSelectedHackathonId] = useState('');
+    const [loadingHackathons, setLoadingHackathons] = useState(false);
+    const [college, setCollege] = useState('');
     const [teamName, setTeamName] = useState('');
     const [track, setTrack] = useState('');
     const [projectTitle, setProjectTitle] = useState('');
     const [problemStatement, setProblemStatement] = useState('');
     const [solutionDescription, setSolutionDescription] = useState('');
-
-    // Form Fields - Members
-    const [members, setMembers] = useState<IMemberInput[]>([
-        { name: '', email: '', college: '' }
-    ]);
+    const [members, setMembers] = useState<IMemberInput[]>([{ name: '', email: '', college: '' }]);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        if (registrationRole !== 'TEAM') return;
+        let isCancelled = false;
         fetch('/api/hackathons')
             .then(res => res.json())
             .then(data => {
-                if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+                if (!isCancelled && data.success && Array.isArray(data.data) && data.data.length > 0) {
                     setHackathons(data.data);
                     const first = data.data[0];
                     setSelectedHackathonId(first._id);
@@ -67,10 +72,11 @@ export default function RegisterTeamPage() {
                 }
             })
             .catch(console.error)
-            .finally(() => setLoadingHackathons(false));
-    }, []);
-
-    const selectedHackathon = hackathons.find(h => h._id === selectedHackathonId) || hackathons[0];
+            .finally(() => {
+                if (!isCancelled) setLoadingHackathons(false);
+            });
+        return () => { isCancelled = true; };
+    }, [registrationRole]);
 
     const handleHackathonChange = (hId: string) => {
         setSelectedHackathonId(hId);
@@ -103,15 +109,33 @@ export default function RegisterTeamPage() {
         setIsSubmitting(true);
 
         try {
-            const res = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            let payload: Record<string, unknown> = {
+                role: registrationRole,
+                email,
+                password
+            };
+
+            if (registrationRole === 'CANDIDATE') {
+                payload = {
+                    ...payload,
+                    name,
+                    phone,
+                    headline
+                };
+            } else if (registrationRole === 'RECRUITER') {
+                payload = {
+                    ...payload,
+                    name,
+                    companyName,
+                    title,
+                    phone
+                };
+            } else {
+                payload = {
+                    ...payload,
                     teamName,
-                    leaderName,
-                    email,
-                    password,
-                    leaderPhone,
+                    leaderName: name,
+                    leaderPhone: phone,
                     college,
                     hackathonId: selectedHackathonId,
                     track,
@@ -119,7 +143,13 @@ export default function RegisterTeamPage() {
                     problemStatement,
                     solutionDescription,
                     members
-                })
+                };
+            }
+
+            const res = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
 
             const data = await res.json();
@@ -130,7 +160,7 @@ export default function RegisterTeamPage() {
                 return;
             }
 
-            // Automatically sign in the newly registered leader
+            // Automatically sign in
             const signInRes = await signIn('credentials', {
                 redirect: false,
                 email,
@@ -138,7 +168,13 @@ export default function RegisterTeamPage() {
             });
 
             if (signInRes?.ok) {
-                router.push('/dashboard');
+                if (registrationRole === 'RECRUITER') {
+                    router.push('/recruiter');
+                } else if (registrationRole === 'CANDIDATE') {
+                    router.push('/candidate/profile');
+                } else {
+                    router.push('/dashboard');
+                }
                 router.refresh();
             } else {
                 router.push('/login?registered=true');
@@ -151,6 +187,8 @@ export default function RegisterTeamPage() {
         }
     };
 
+    const selectedHackathon = hackathons.find(h => h._id === selectedHackathonId) || hackathons[0];
+
     return (
         <div className="min-h-screen py-10 px-4 max-w-4xl mx-auto relative">
             <div className="absolute top-10 left-1/2 -translate-x-1/2 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
@@ -159,281 +197,388 @@ export default function RegisterTeamPage() {
                 <div className="text-center space-y-2">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
                         <Sparkles className="w-3.5 h-3.5" />
-                        Official Hackathon Registration
+                        HireSphere AI Registration
                     </div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-white">Register Your Hackathon Team</h1>
+                    <h1 className="text-3xl font-extrabold tracking-tight text-white">Create Your Verified Account</h1>
                     <p className="text-neutral-400 text-sm max-w-xl mx-auto">
-                        Create your verified team leader account to submit your GitHub repository, receive AI code evaluation, and compete on the leaderboard.
+                        Join the all-industry talent intelligence platform as a candidate, hiring team, or hackathon participant.
                     </p>
+
+                    {/* Role Selection Tabs */}
+                    <div className="flex max-w-md mx-auto bg-neutral-900/90 p-1 rounded-xl border border-neutral-800 mt-4">
+                        <button
+                            type="button"
+                            onClick={() => { setRegistrationRole('CANDIDATE'); setError(null); }}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                                registrationRole === 'CANDIDATE' ? 'bg-primary text-black shadow-md' : 'text-neutral-400 hover:text-white'
+                            }`}
+                        >
+                            <User className="w-3.5 h-3.5" /> Candidate
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setRegistrationRole('RECRUITER'); setError(null); }}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                                registrationRole === 'RECRUITER' ? 'bg-primary text-black shadow-md' : 'text-neutral-400 hover:text-white'
+                            }`}
+                        >
+                            <Briefcase className="w-3.5 h-3.5" /> Recruiter
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setRegistrationRole('TEAM'); setError(null); }}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                                registrationRole === 'TEAM' ? 'bg-primary text-black shadow-md' : 'text-neutral-400 hover:text-white'
+                            }`}
+                        >
+                            <Trophy className="w-3.5 h-3.5" /> Hackathon Team
+                        </button>
+                    </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Step 1: Hackathon & Theme Selection */}
-                    <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
-                        <CardHeader className="pb-4">
-                            <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
-                                <Trophy className="w-4 h-4 text-primary" /> 1. Hackathon & Theme Selection
-                            </CardTitle>
-                            <CardDescription>Select the event and track your team is competing in</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {loadingHackathons ? (
-                                <p className="text-xs text-neutral-400">Loading active hackathons...</p>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="hackathonSelect">Event</Label>
-                                        <select
-                                            id="hackathonSelect"
-                                            value={selectedHackathonId}
-                                            onChange={(e) => handleHackathonChange(e.target.value)}
-                                            className="w-full h-10 px-3 text-sm bg-neutral-900 border border-neutral-700 rounded-md text-white font-medium focus:ring-1 focus:ring-primary"
-                                        >
-                                            {hackathons.map(h => (
-                                                <option key={h._id} value={h._id}>{h.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label htmlFor="trackSelect">Theme / Track</Label>
-                                        <select
-                                            id="trackSelect"
-                                            value={track}
-                                            onChange={(e) => setTrack(e.target.value)}
-                                            className="w-full h-10 px-3 text-sm bg-neutral-900 border border-neutral-700 rounded-md text-white font-medium focus:ring-1 focus:ring-primary"
-                                        >
-                                            {selectedHackathon?.tracks?.map((t, idx) => (
-                                                <option key={idx} value={t.name}>{t.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                            )}
-
-                            {selectedHackathon?.theme && (
-                                <div className="p-3 bg-neutral-900/80 rounded-lg border border-neutral-800 text-xs text-neutral-300">
-                                    <span className="font-semibold text-primary">Theme Brief: </span>
-                                    {selectedHackathon.theme}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Step 2: Team Leader Account */}
-                    <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
-                        <CardHeader className="pb-4">
-                            <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
-                                <User className="w-4 h-4 text-primary" /> 2. Team Leader Identity
-                            </CardTitle>
-                            <CardDescription>This account owns the submission and receives evaluation scorecards</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="leaderName">Full Name *</Label>
-                                    <Input
-                                        id="leaderName"
-                                        placeholder="Alex Johnson"
-                                        value={leaderName}
-                                        onChange={(e) => setLeaderName(e.target.value)}
-                                        required
-                                        className="bg-neutral-900/80 border-neutral-800"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Email Address (Login ID) *</Label>
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        placeholder="alex@university.edu"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                        className="bg-neutral-900/80 border-neutral-800"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="password">Account Password *</Label>
-                                    <Input
-                                        id="password"
-                                        type="password"
-                                        placeholder="Minimum 6 characters"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                        minLength={6}
-                                        className="bg-neutral-900/80 border-neutral-800"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="leaderPhone">Contact Phone Number</Label>
-                                    <Input
-                                        id="leaderPhone"
-                                        type="tel"
-                                        placeholder="+1 (555) 000-0000"
-                                        value={leaderPhone}
-                                        onChange={(e) => setLeaderPhone(e.target.value)}
-                                        className="bg-neutral-900/80 border-neutral-800"
-                                    />
-                                </div>
-                                <div className="space-y-2 md:col-span-2">
-                                    <Label htmlFor="college">College / University / Organization</Label>
-                                    <Input
-                                        id="college"
-                                        placeholder="e.g. Stanford University or Open Source Contributor"
-                                        value={college}
-                                        onChange={(e) => setCollege(e.target.value)}
-                                        className="bg-neutral-900/80 border-neutral-800"
-                                    />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Step 3: Team & Project Scope */}
-                    <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
-                        <CardHeader className="pb-4">
-                            <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
-                                <Users className="w-4 h-4 text-primary" /> 3. Team & Project Scope
-                            </CardTitle>
-                            <CardDescription>Enter your project concept and problem description</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="teamName">Official Team Name *</Label>
-                                    <Input
-                                        id="teamName"
-                                        placeholder="NeuralNexus"
-                                        value={teamName}
-                                        onChange={(e) => setTeamName(e.target.value)}
-                                        required
-                                        className="bg-neutral-900/80 border-neutral-800"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="projectTitle">Project Title</Label>
-                                    <Input
-                                        id="projectTitle"
-                                        placeholder="Autonomous Agent for Clinical Records"
-                                        value={projectTitle}
-                                        onChange={(e) => setProjectTitle(e.target.value)}
-                                        className="bg-neutral-900/80 border-neutral-800"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="problemStatement">Problem Statement *</Label>
-                                <textarea
-                                    id="problemStatement"
-                                    rows={3}
-                                    placeholder="Describe the critical real-world problem your project addresses..."
-                                    value={problemStatement}
-                                    onChange={(e) => setProblemStatement(e.target.value)}
-                                    required
-                                    className="w-full p-3 rounded-md bg-neutral-900/80 border border-neutral-800 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="solutionDescription">Solution Description & Architecture</Label>
-                                <textarea
-                                    id="solutionDescription"
-                                    rows={2}
-                                    placeholder="Brief outline of your solution architecture and tech stack..."
-                                    value={solutionDescription}
-                                    onChange={(e) => setSolutionDescription(e.target.value)}
-                                    className="w-full p-3 rounded-md bg-neutral-900/80 border border-neutral-800 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary"
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Step 4: Team Members Roster */}
-                    <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
-                        <CardHeader className="pb-4 flex flex-row items-center justify-between">
-                            <div>
+                    {/* CANDIDATE REGISTRATION FORM */}
+                    {registrationRole === 'CANDIDATE' && (
+                        <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
+                            <CardHeader className="pb-4">
                                 <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
-                                    <Users className="w-4 h-4 text-primary" /> 4. Additional Team Members
+                                    <User className="w-4 h-4 text-primary" /> Candidate Profile Information
                                 </CardTitle>
-                                <CardDescription>Add co-developers or designers on your team</CardDescription>
-                            </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={addMember}
-                                disabled={members.length >= 5}
-                                className="border-primary/30 text-primary hover:bg-primary/10"
-                            >
-                                <Plus className="w-3.5 h-3.5 mr-1" /> Add Member
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {members.map((m, idx) => (
-                                <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 bg-neutral-900/50 rounded-lg border border-neutral-800">
-                                    <Badge variant="outline" className="text-xs shrink-0 border-neutral-700">
-                                        Member {idx + 1}
-                                    </Badge>
-                                    <Input
-                                        placeholder="Full Name"
-                                        value={m.name}
-                                        onChange={(e) => updateMember(idx, 'name', e.target.value)}
-                                        className="h-8 text-xs bg-neutral-950 border-neutral-800 flex-1"
-                                    />
-                                    <Input
-                                        placeholder="Email (optional)"
-                                        type="email"
-                                        value={m.email}
-                                        onChange={(e) => updateMember(idx, 'email', e.target.value)}
-                                        className="h-8 text-xs bg-neutral-950 border-neutral-800 flex-1"
-                                    />
-                                    <Input
-                                        placeholder="College / Role"
-                                        value={m.college}
-                                        onChange={(e) => updateMember(idx, 'college', e.target.value)}
-                                        className="h-8 text-xs bg-neutral-950 border-neutral-800 flex-1"
-                                    />
-                                    {members.length > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => removeMember(idx)}
-                                            className="text-neutral-500 hover:text-red-400 p-1"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    )}
+                                <CardDescription>Apply to open industry jobs and demonstrate real capabilities</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="candName" className="text-xs text-neutral-300">Full Name *</Label>
+                                        <Input
+                                            id="candName"
+                                            required
+                                            placeholder="Jane Doe"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                            className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="candEmail" className="text-xs text-neutral-300">Email Address (Login ID) *</Label>
+                                        <Input
+                                            id="candEmail"
+                                            type="email"
+                                            required
+                                            placeholder="jane@example.com"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="candPassword" className="text-xs text-neutral-300">Password *</Label>
+                                        <Input
+                                            id="candPassword"
+                                            type="password"
+                                            required
+                                            minLength={6}
+                                            placeholder="Minimum 6 characters"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="candPhone" className="text-xs text-neutral-300">Phone Number</Label>
+                                        <Input
+                                            id="candPhone"
+                                            type="tel"
+                                            placeholder="+1 (555) 000-0000"
+                                            value={phone}
+                                            onChange={(e) => setPhone(e.target.value)}
+                                            className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5 md:col-span-2">
+                                        <Label htmlFor="candHeadline" className="text-xs text-neutral-300">Professional Headline</Label>
+                                        <Input
+                                            id="candHeadline"
+                                            placeholder="e.g. Senior Frontend Engineer | React & TypeScript or B2B Account Executive"
+                                            value={headline}
+                                            onChange={(e) => setHeadline(e.target.value)}
+                                            className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                        />
+                                    </div>
                                 </div>
-                            ))}
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* RECRUITER REGISTRATION FORM */}
+                    {registrationRole === 'RECRUITER' && (
+                        <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
+                                    <Building2 className="w-4 h-4 text-primary" /> Recruiter & Company Account
+                                </CardTitle>
+                                <CardDescription>Post vacancies, calibrate evaluation rubrics, and use Recruiter Copilot</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="recName" className="text-xs text-neutral-300">Your Full Name *</Label>
+                                        <Input
+                                            id="recName"
+                                            required
+                                            placeholder="Alex Johnson"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                            className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="recEmail" className="text-xs text-neutral-300">Work Email (Login ID) *</Label>
+                                        <Input
+                                            id="recEmail"
+                                            type="email"
+                                            required
+                                            placeholder="alex@company.com"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="recPassword" className="text-xs text-neutral-300">Password *</Label>
+                                        <Input
+                                            id="recPassword"
+                                            type="password"
+                                            required
+                                            minLength={6}
+                                            placeholder="Minimum 6 characters"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="recPhone" className="text-xs text-neutral-300">Direct Phone</Label>
+                                        <Input
+                                            id="recPhone"
+                                            type="tel"
+                                            placeholder="+1 (555) 000-0000"
+                                            value={phone}
+                                            onChange={(e) => setPhone(e.target.value)}
+                                            className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="recCompany" className="text-xs text-neutral-300">Hiring Company Name *</Label>
+                                        <Input
+                                            id="recCompany"
+                                            required
+                                            placeholder="e.g. Acme Tech Corporation"
+                                            value={companyName}
+                                            onChange={(e) => setCompanyName(e.target.value)}
+                                            className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="recTitle" className="text-xs text-neutral-300">Your Job Title</Label>
+                                        <Input
+                                            id="recTitle"
+                                            placeholder="e.g. Head of Talent Acquisition or Engineering Manager"
+                                            value={title}
+                                            onChange={(e) => setTitle(e.target.value)}
+                                            className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                        />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* HACKATHON TEAM REGISTRATION FORM */}
+                    {registrationRole === 'TEAM' && (
+                        <div className="space-y-6">
+                            <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
+                                <CardHeader className="pb-4">
+                                    <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
+                                        <Trophy className="w-4 h-4 text-primary" /> 1. Hackathon & Theme Selection
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {loadingHackathons ? (
+                                        <p className="text-xs text-neutral-400">Loading active hackathons...</p>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <Label htmlFor="teamHackathon">Event</Label>
+                                                <select
+                                                    id="teamHackathon"
+                                                    value={selectedHackathonId}
+                                                    onChange={(e) => handleHackathonChange(e.target.value)}
+                                                    className="w-full h-10 px-3 text-xs bg-neutral-900 border border-neutral-700 rounded-md text-white font-medium focus:ring-1 focus:ring-primary"
+                                                >
+                                                    {hackathons.map(h => (
+                                                        <option key={h._id} value={h._id}>{h.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label htmlFor="teamTrack">Theme / Track</Label>
+                                                <select
+                                                    id="teamTrack"
+                                                    value={track}
+                                                    onChange={(e) => setTrack(e.target.value)}
+                                                    className="w-full h-10 px-3 text-xs bg-neutral-900 border border-neutral-700 rounded-md text-white font-medium focus:ring-1 focus:ring-primary"
+                                                >
+                                                    {selectedHackathon?.tracks?.map((t, idx) => (
+                                                        <option key={idx} value={t.name}>{t.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
+                                <CardHeader className="pb-4">
+                                    <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
+                                        <User className="w-4 h-4 text-primary" /> 2. Team Leader Account
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <Label htmlFor="leaderName">Full Name *</Label>
+                                            <Input
+                                                id="leaderName"
+                                                required
+                                                placeholder="Alex Johnson"
+                                                value={name}
+                                                onChange={(e) => setName(e.target.value)}
+                                                className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label htmlFor="leaderEmail">Email (Login ID) *</Label>
+                                            <Input
+                                                id="leaderEmail"
+                                                type="email"
+                                                required
+                                                placeholder="alex@university.edu"
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label htmlFor="leaderPassword">Password *</Label>
+                                            <Input
+                                                id="leaderPassword"
+                                                type="password"
+                                                required
+                                                minLength={6}
+                                                placeholder="Minimum 6 characters"
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label htmlFor="leaderPhone">Contact Phone Number</Label>
+                                            <Input
+                                                id="leaderPhone"
+                                                type="tel"
+                                                placeholder="+1 (555) 000-0000"
+                                                value={phone}
+                                                onChange={(e) => setPhone(e.target.value)}
+                                                className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5 md:col-span-2">
+                                            <Label htmlFor="leaderCollege">College / Organization</Label>
+                                            <Input
+                                                id="leaderCollege"
+                                                placeholder="e.g. Stanford University"
+                                                value={college}
+                                                onChange={(e) => setCollege(e.target.value)}
+                                                className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                            />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
+                                <CardHeader className="pb-4">
+                                    <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
+                                        <Users className="w-4 h-4 text-primary" /> 3. Team & Project Scope
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <Label htmlFor="tName">Official Team Name *</Label>
+                                            <Input
+                                                id="tName"
+                                                required
+                                                placeholder="NeuralNexus"
+                                                value={teamName}
+                                                onChange={(e) => setTeamName(e.target.value)}
+                                                className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label htmlFor="pTitle">Project Title</Label>
+                                            <Input
+                                                id="pTitle"
+                                                placeholder="Autonomous AI Recruiter Agent"
+                                                value={projectTitle}
+                                                onChange={(e) => setProjectTitle(e.target.value)}
+                                                className="bg-neutral-900/80 border-neutral-800 text-xs h-10 text-white"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="pStatement">Problem Statement *</Label>
+                                        <textarea
+                                            id="pStatement"
+                                            rows={2}
+                                            required
+                                            placeholder="What problem does your team solve?"
+                                            value={problemStatement}
+                                            onChange={(e) => setProblemStatement(e.target.value)}
+                                            className="w-full p-2.5 rounded-md bg-neutral-900/80 border border-neutral-800 text-xs text-white placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                                        />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
 
                     {error && (
-                        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm font-medium text-center">
+                        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs font-medium text-center">
                             {error}
                         </div>
                     )}
 
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
                         <p className="text-xs text-neutral-400">
-                            Already registered?{' '}
-                            <Link href="/login" className="text-primary hover:underline font-medium">
-                                Sign In to Dashboard
+                            Already have an account?{' '}
+                            <Link href="/login" className="text-primary hover:underline font-semibold">
+                                Sign In
                             </Link>
                         </p>
 
                         <Button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-black font-bold px-8 h-11"
+                            className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-black font-extrabold px-8 h-11 text-xs"
                         >
                             {isSubmitting ? (
-                                'Registering Team...'
+                                'Creating Account...'
                             ) : (
                                 <>
-                                    Complete Team Registration <ArrowRight className="w-4 h-4 ml-2" />
+                                    Complete {registrationRole === 'CANDIDATE' ? 'Candidate' : registrationRole === 'RECRUITER' ? 'Recruiter' : 'Team'} Registration <ArrowRight className="w-4 h-4 ml-1.5" />
                                 </>
                             )}
                         </Button>
