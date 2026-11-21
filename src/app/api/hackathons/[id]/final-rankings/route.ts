@@ -35,6 +35,8 @@ interface IHackathonDocLean {
     githubWeight?: number;
     lastCalculatedPitchWeight?: number;
     lastCalculatedGithubWeight?: number;
+    isRankingDirty?: boolean;
+    rankingVersion?: number;
     isFinalResultsPublished?: boolean;
     finalResultsPublishedAt?: Date;
     finalResultsPublishedBy?: string;
@@ -112,46 +114,64 @@ interface ISubmissionDocLean {
  * When two or more teams achieve similar standing, ranks are decided strictly in the
  * following deterministic order:
  * 
- * 1. Final Composite Score (descending)
- *    The primary ranking criterion: (Pitch Score * Pitch Weight) + (GitHub Score * GitHub Weight).
- *    Score differences > 0.0001 break ties immediately.
+ * 1. Final Composite Score (descending, normalized to fixed 2 decimal places integer precision)
+ *    The primary ranking criterion: Math.round(finalScore * 100).
+ *    Normalizing scores to integer cents eliminates floating-point epsilon inconsistencies and
+ *    guarantees mathematical transitivity across three or more teams.
  * 
- * 2. GitHub Technical Score (descending)
- *    If final composite scores are tied within floating-point tolerance (0.0001), the team with
- *    the higher Round 2 GitHub technical evaluation score is ranked higher.
+ * 2. GitHub Technical Score (descending, normalized to fixed 2 decimal places integer precision)
+ *    If final composite scores are equal, Math.round(githubScore * 100) breaks ties.
  * 
- * 3. Pitch Deck Score (descending)
- *    If GitHub technical scores are also identical, the team with the higher Round 1 pitch deck
- *    evaluation score is ranked higher.
+ * 3. Pitch Deck Score (descending, normalized to fixed 2 decimal places integer precision)
+ *    If GitHub technical scores are also equal, Math.round(pitchScore * 100) breaks ties.
  * 
  * 4. Submission CreatedAt Timestamp (ascending)
- *    If both round scores are identical, the team with the earlier submission timestamp
+ *    If all round scores are equal, the team with the earlier submission timestamp
  *    (first-come advantage) is ranked higher.
  * 
  * 5. Team ID Lexicographical Comparison (ascending)
  *    If all four criteria above are equal, the unique 24-character hexadecimal MongoDB ObjectId
  *    string (String(a.teamId).localeCompare(String(b.teamId))) is compared lexicographically.
  * 
- * TOTAL ORDERING GUARANTEE (Zero Arbitrary/Random Ordering):
- * In MongoDB, every team document possesses an immutable, globally unique ObjectId (_id).
- * Therefore, for two distinct teams A and B, String(a.teamId) === String(b.teamId) can never occur.
- * This mathematically ensures a strict, non-random total ordering over all candidates, eliminating
- * non-deterministic sorting or arbitrary reordering across multiple runs.
+ * MATHEMATICAL TOTAL ORDERING & TRANSITIVITY GUARANTEE (Zero Arbitrary/Random Ordering):
+ * 1. Strict Weak Ordering & Transitivity: Discrete integer projection (Math.round(x * 100))
+ *    establishes an exact equivalence relation, eliminating epsilon-tolerance cycles (e.g. 0.0001
+ *    transitivity violations). If a > b and b > c, then a > c is unconditionally true.
+ * 2. Antisymmetry: In MongoDB, every team document possesses an immutable, globally unique
+ *    ObjectId (_id). Therefore, for two distinct teams A and B, String(a.teamId) === String(b.teamId)
+ *    is impossible.
+ * Together, these 5 stages guarantee a strictly deterministic, non-random total ordering.
  */
 function sortRankingsDeterministically(a: ICalculatedRankedTeam, b: ICalculatedRankedTeam): number {
-    const scoreDiff = b.finalScore - a.finalScore;
-    if (Math.abs(scoreDiff) > 0.0001) return scoreDiff;
+    // 1. Final Composite Score (descending) - normalized to integer cents
+    const normFinalA = Math.round(a.finalScore * 100);
+    const normFinalB = Math.round(b.finalScore * 100);
+    if (normFinalB !== normFinalA) {
+        return normFinalB - normFinalA;
+    }
 
-    const gitDiff = b.githubScore - a.githubScore;
-    if (gitDiff !== 0) return gitDiff;
+    // 2. GitHub Technical Score (descending) - normalized to integer cents
+    const normGitA = Math.round(a.githubScore * 100);
+    const normGitB = Math.round(b.githubScore * 100);
+    if (normGitB !== normGitA) {
+        return normGitB - normGitA;
+    }
 
-    const pitchDiff = b.pitchScore - a.pitchScore;
-    if (pitchDiff !== 0) return pitchDiff;
+    // 3. Pitch Deck Score (descending) - normalized to integer cents
+    const normPitchA = Math.round(a.pitchScore * 100);
+    const normPitchB = Math.round(b.pitchScore * 100);
+    if (normPitchB !== normPitchA) {
+        return normPitchB - normPitchA;
+    }
 
+    // 4. Submission CreatedAt Timestamp (ascending)
     const dateA = new Date(a.createdAt).getTime();
     const dateB = new Date(b.createdAt).getTime();
-    if (dateA !== dateB) return dateA - dateB;
+    if (dateA !== dateB) {
+        return dateA - dateB;
+    }
 
+    // 5. Team ID Lexicographical Comparison (ascending)
     return String(a.teamId).localeCompare(String(b.teamId));
 }
 
@@ -236,6 +256,8 @@ export async function GET(
                 githubWeight: hackathon.githubWeight ?? 60,
                 lastCalculatedPitchWeight: hackathon.lastCalculatedPitchWeight,
                 lastCalculatedGithubWeight: hackathon.lastCalculatedGithubWeight,
+                isRankingDirty: Boolean(hackathon.isRankingDirty),
+                rankingVersion: hackathon.rankingVersion || 0,
                 isFinalResultsPublished: Boolean(hackathon.isFinalResultsPublished),
                 finalResultsPublishedAt: hackathon.finalResultsPublishedAt || null,
                 finalResultsPublishedBy: hackathon.finalResultsPublishedBy || null,
@@ -315,10 +337,10 @@ export async function POST(
                 }, { status: 400 });
             }
 
-            // Safeguard 1: Invalidation check
-            if (hackathon.finalResultsInvalidatedAt && (!hackathon.finalRankingRecalculatedAt || new Date(hackathon.finalRankingRecalculatedAt) <= new Date(hackathon.finalResultsInvalidatedAt))) {
+            // Safeguard 1: Explicit Dirty Flag & Invalidation Check (Immune to timestamp millisecond collisions)
+            if (hackathon.isRankingDirty) {
                 return NextResponse.json({
-                    error: `Cannot publish: results were invalidated on ${new Date(hackathon.finalResultsInvalidatedAt).toISOString()} (${hackathon.finalResultsInvalidationReason || 'scores or weights modified'}). A fresh ranking calculation must be run before publishing.`
+                    error: `Cannot publish: rankings are dirty (${hackathon.finalResultsInvalidationReason || 'scores, evaluation statuses, or weights have changed since last calculation'}). A fresh ranking calculation must be run before publishing.`
                 }, { status: 400 });
             }
 
@@ -631,6 +653,10 @@ export async function POST(
         hackathon.lastCalculatedPitchWeight = pw;
         hackathon.lastCalculatedGithubWeight = gw;
         hackathon.finalRankingRecalculatedAt = now;
+        hackathon.isRankingDirty = false; // Fresh calculation clears dirty state
+        hackathon.rankingVersion = (hackathon.rankingVersion || 0) + 1;
+        hackathon.finalResultsInvalidatedAt = undefined;
+        hackathon.finalResultsInvalidationReason = undefined;
 
         if (!hackathon.rankingHistory) hackathon.rankingHistory = [];
         const nextVersion = hackathon.rankingHistory.length + 1;

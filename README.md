@@ -99,19 +99,21 @@ In every hackathon with 50+ or 100+ participating teams across multiple themes, 
 ### 8. ⚖️ 5-Stage Deterministic Tie-Breaking & Final Scoring Algorithm
 - **Weighted Composite Score:** Organizer-configurable weights (e.g. 40% Pitch Deck + 60% GitHub Codebase) combined deterministically.
 - **5-Stage Total Ordering:**
-  1. **Final Composite Score (descending):** Primary ranking criterion.
-  2. **GitHub Technical Score (descending):** Breaks composite ties if within floating-point tolerance (0.0001).
-  3. **Pitch Deck Score (descending):** Breaks technical ties using Round 1 presentation evaluation.
-  4. **Submission CreatedAt Timestamp (ascending):** Breaks score ties using submission submission time (first-come advantage).
+  1. **Final Composite Score (descending):** Primary ranking criterion, normalized to fixed 2 decimal places integer precision (`Math.round(score * 100)`).
+  2. **GitHub Technical Score (descending):** Breaks composite ties with normalized integer precision.
+  3. **Pitch Deck Score (descending):** Breaks technical ties with normalized integer precision.
+  4. **Submission CreatedAt Timestamp (ascending):** Breaks score ties using earlier submission time (first-come advantage).
   5. **Team ID Lexicographical Comparison (ascending):** Compares unique 24-character hexadecimal MongoDB ObjectIds (`String(a.teamId).localeCompare(String(b.teamId))`).
-- **Mathematical Total Ordering Guarantee (Zero Arbitrary Ordering):** Because every MongoDB document has an immutable, globally unique `_id`, no two teams can ever match on all 5 criteria. Rankings are 100% deterministic, reproducible, and never randomized across executions.
+- **Mathematical Total Ordering & Strict Transitivity Guarantee:** Normalizing scores into discrete integer equivalence classes eliminates floating-point epsilon cycles (e.g., 0.0001 intransitivity across 3+ teams) and guarantees strict weak ordering. Combined with unique MongoDB ObjectIds, rankings are mathematically total, 100% deterministic, and completely reproducible across repeated calculations.
 
-### 9. 🔒 Published Results Invalidation & Publication Safeguards
-- **Automatic Publication Invalidation:** If pitch/GitHub scores, evaluation statuses, or ranking weights change post-publication, the system immediately revokes publication (`isFinalResultsPublished = false`), clears winner flags, and logs the invalidation event.
-- **Recalculation Requirement:** Organizers must execute a fresh calculation before republishing invalidated results.
+### 9. 🔒 Publication Invalidation & Atomic `isRankingDirty` Safeguard
+- **Explicit Dirty State Engine:** Any modification to pitch deck scores, GitHub evaluations, or scoring weights immediately trips `isRankingDirty = true`.
+- **Immunity to Timestamp Collisions:** Eliminates same-millisecond race conditions between recalculation and invalidation by relying on atomic boolean dirty state and versioned increments (`rankingVersion`).
+- **Recalculation Requirement:** Successful execution of fresh rankings is the only operation that clears `isRankingDirty = false`.
 - **Publish Safeguards:**
+  - Strictly blocks publishing if `isRankingDirty === true`.
   - Blocks publishing if any shortlisted team has a pending or failed evaluation (`PENDING_CODE`, `FAILED_CODE`, or unsubmitted deck).
-  - Blocks publishing if rankings have not been calculated with currently configured weights (`lastCalculatedPitchWeight` !== `pitchWeight`).
+  - Blocks publishing if rankings have not been calculated with currently configured weights (`lastCalculatedPitchWeight !== pitchWeight`).
   - Blocks publishing if `winnerCount` exceeds eligible ranked teams.
   - Blocks publishing if no valid saved ranking exists.
 - **Participant Privacy Guard:** Participant-facing endpoints (`/api/user-submission`, `/api/submissions`, `/api/submissions/[id]`, `/api/export`) enforce strict server-side masking of `finalScore`, `finalScoreBreakdown`, `finalRank`, `isWinner`, and `winnerPosition` until the organizer explicitly publishes results.

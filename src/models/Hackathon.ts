@@ -54,6 +54,8 @@ export interface IHackathon extends Document {
     githubWeight?: number;
     lastCalculatedPitchWeight?: number;
     lastCalculatedGithubWeight?: number;
+    isRankingDirty?: boolean;
+    rankingVersion?: number;
     isFinalResultsPublished?: boolean;
     finalResultsPublishedAt?: Date;
     finalResultsPublishedBy?: string;
@@ -99,6 +101,8 @@ const HackathonSchema: Schema = new Schema({
     githubWeight: { type: Number, default: 60 },
     lastCalculatedPitchWeight: { type: Number },
     lastCalculatedGithubWeight: { type: Number },
+    isRankingDirty: { type: Boolean, default: false },
+    rankingVersion: { type: Number, default: 0 },
     isFinalResultsPublished: { type: Boolean, default: false },
     finalResultsPublishedAt: { type: Date },
     finalResultsPublishedBy: { type: String },

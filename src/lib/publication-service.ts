@@ -17,40 +17,45 @@ export async function invalidateHackathonPublication(
 ): Promise<boolean> {
     try {
         const hackathon = await Hackathon.findById(hackathonId);
-        if (!hackathon || !hackathon.isFinalResultsPublished) {
+        if (!hackathon) {
             return false;
         }
 
         const now = new Date();
-        hackathon.isFinalResultsPublished = false;
+        hackathon.isRankingDirty = true;
         hackathon.finalResultsInvalidatedAt = now;
         hackathon.finalResultsInvalidationReason = reason;
 
-        if (!hackathon.publicationHistory) {
-            hackathon.publicationHistory = [];
-        }
+        const wasPublished = Boolean(hackathon.isFinalResultsPublished);
+        if (wasPublished) {
+            hackathon.isFinalResultsPublished = false;
 
-        hackathon.publicationHistory.push({
-            action: reason.toLowerCase().includes('weight') ? 'INVALIDATED_WEIGHT_CHANGE' : 'INVALIDATED_SCORE_CHANGE',
-            timestamp: now,
-            performedBy: performer,
-            reason
-        });
+            if (!hackathon.publicationHistory) {
+                hackathon.publicationHistory = [];
+            }
+
+            hackathon.publicationHistory.push({
+                action: reason.toLowerCase().includes('weight') ? 'INVALIDATED_WEIGHT_CHANGE' : 'INVALIDATED_SCORE_CHANGE',
+                timestamp: now,
+                performedBy: performer,
+                reason
+            });
+
+            // Clear stale winner statuses and ranks so participants cannot see them
+            await Team.updateMany(
+                { hackathon: hackathonId },
+                { $set: { isWinner: false, winnerPosition: undefined } }
+            );
+
+            await Submission.updateMany(
+                { hackathon: hackathonId },
+                { $set: { isWinner: false, winnerPosition: undefined } }
+            );
+        }
 
         await hackathon.save();
 
-        // Clear stale winner statuses and ranks so participants cannot see them
-        await Team.updateMany(
-            { hackathon: hackathonId },
-            { $set: { isWinner: false, winnerPosition: undefined } }
-        );
-
-        await Submission.updateMany(
-            { hackathon: hackathonId },
-            { $set: { isWinner: false, winnerPosition: undefined } }
-        );
-
-        console.log(`[Publication Guard] Publication invalidated for hackathon ${hackathonId}. Reason: ${reason}`);
+        console.log(`[Publication Guard] Rankings marked DIRTY (wasPublished=${wasPublished}) for hackathon ${hackathonId}. Reason: ${reason}`);
         return true;
     } catch (error) {
         console.error('[Publication Guard] Error invalidating hackathon publication:', error);
