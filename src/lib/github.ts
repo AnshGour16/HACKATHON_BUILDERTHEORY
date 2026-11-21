@@ -103,7 +103,7 @@ export function validateAndNormalizeGithubUrl(inputUrl: string): IValidatedGithu
 function getGitHubHeaders(): HeadersInit {
     const headers: Record<string, string> = {
         'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'Hackathon-ATS'
+        'User-Agent': 'HACKATHON-BUILDERTHEORY'
     };
 
     const token = process.env.GITHUB_TOKEN?.trim();

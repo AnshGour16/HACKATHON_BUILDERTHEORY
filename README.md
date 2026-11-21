@@ -224,8 +224,8 @@ flowchart TD
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/AnshGour16/Hackathon-ATS.git
-cd Hackathon-ATS
+git clone https://github.com/AnshGour16/HACKATHON_BUILDERTHEORY.git
+cd HACKATHON_BUILDERTHEORY
 ```
 
 ### 2. Install dependencies
