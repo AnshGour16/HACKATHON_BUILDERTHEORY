@@ -422,11 +422,10 @@ export default function NewJobPage() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <div
                                     onClick={() => setEvaluationType('TECHNICAL_GITHUB')}
-                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                                        evaluationType === 'TECHNICAL_GITHUB'
+                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${evaluationType === 'TECHNICAL_GITHUB'
                                             ? 'border-indigo-500 bg-indigo-50/60 shadow-xs ring-1 ring-indigo-500'
                                             : 'border-slate-200 bg-slate-50 hover:border-slate-300'
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs mb-1">
                                         <Github className="w-4 h-4" /> GitHub Codebase Audit
@@ -438,11 +437,10 @@ export default function NewJobPage() {
 
                                 <div
                                     onClick={() => setEvaluationType('NON_TECHNICAL_ASSIGNMENT')}
-                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                                        evaluationType === 'NON_TECHNICAL_ASSIGNMENT'
+                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${evaluationType === 'NON_TECHNICAL_ASSIGNMENT'
                                             ? 'border-amber-500 bg-amber-50/60 shadow-xs ring-1 ring-amber-500'
                                             : 'border-slate-200 bg-slate-50 hover:border-slate-300'
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-center gap-2 text-amber-800 font-bold text-xs mb-1">
                                         <FileText className="w-4 h-4" /> Practical Case Study
@@ -454,11 +452,10 @@ export default function NewJobPage() {
 
                                 <div
                                     onClick={() => setEvaluationType('RESUME_ONLY')}
-                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                                        evaluationType === 'RESUME_ONLY'
+                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${evaluationType === 'RESUME_ONLY'
                                             ? 'border-emerald-500 bg-emerald-50/60 shadow-xs ring-1 ring-emerald-500'
                                             : 'border-slate-200 bg-slate-50 hover:border-slate-300'
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs mb-1">
                                         <CheckCircle2 className="w-4 h-4" /> Resume-Only Match

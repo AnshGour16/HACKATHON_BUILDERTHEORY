@@ -90,7 +90,7 @@ export default function JobDetailPage() {
                     if (p.githubUrl) setGithubRepoUrl(p.githubUrl);
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     }, [jobId]);
 
     const handleApply = async (e: React.FormEvent) => {
@@ -175,13 +175,12 @@ export default function JobDetailPage() {
                             </span>
                             <Badge
                                 variant="outline"
-                                className={`text-[10px] font-semibold ${
-                                    job.evaluationType === 'TECHNICAL_GITHUB'
+                                className={`text-[10px] font-semibold ${job.evaluationType === 'TECHNICAL_GITHUB'
                                         ? 'border-indigo-200 text-indigo-700 bg-indigo-50'
                                         : job.evaluationType === 'NON_TECHNICAL_ASSIGNMENT'
-                                        ? 'border-amber-200 text-amber-700 bg-amber-50'
-                                        : 'border-emerald-200 text-emerald-700 bg-emerald-50'
-                                }`}
+                                            ? 'border-amber-200 text-amber-700 bg-amber-50'
+                                            : 'border-emerald-200 text-emerald-700 bg-emerald-50'
+                                    }`}
                             >
                                 {job.evaluationType === 'TECHNICAL_GITHUB' && <Github className="w-3 h-3 mr-1 inline" />}
                                 {job.evaluationType === 'NON_TECHNICAL_ASSIGNMENT' && <FileText className="w-3 h-3 mr-1 inline" />}
