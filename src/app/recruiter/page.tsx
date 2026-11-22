@@ -160,8 +160,9 @@ export default function RecruiterDashboard() {
                 })
             });
             const data = await res.json();
-            if (data.success && data.answer) {
-                setCopilotMessages(prev => [...prev, { sender: 'bot', text: data.answer }]);
+            const botAnswer = data.answer || data.reply;
+            if (data.success && botAnswer) {
+                setCopilotMessages(prev => [...prev, { sender: 'bot', text: botAnswer }]);
             } else {
                 setCopilotMessages(prev => [
                     ...prev,

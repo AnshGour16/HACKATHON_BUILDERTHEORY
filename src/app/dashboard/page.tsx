@@ -30,7 +30,15 @@ interface IApplicationItem {
     matchScore?: number;
     aiEvaluation?: {
         overallMatchScore?: number;
-        criteriaScores?: { name: string; score: number; maxScore: number; rationale?: string }[];
+        criteriaScores?: {
+            name?: string;
+            criterion?: string;
+            score: number;
+            maxScore?: number;
+            weightage?: number;
+            rationale?: string;
+            reasoning?: string;
+        }[];
         strengths?: string[];
         weaknesses?: string[];
         interviewQuestions?: string[];
@@ -442,17 +450,22 @@ export default function UnifiedDashboard() {
                                                     <Target className="w-4 h-4 text-emerald-600" /> Evaluation Criteria Breakdown
                                                 </h4>
                                                 <div className="space-y-2">
-                                                    {selectedApp.aiEvaluation.criteriaScores.map((crit, i) => (
-                                                        <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                                                            <div className="flex justify-between items-center mb-1">
-                                                                <span className="font-semibold text-slate-800">{crit.name}</span>
-                                                                <span className="font-bold text-emerald-700">{crit.score} / {crit.maxScore} pts</span>
+                                                    {selectedApp.aiEvaluation.criteriaScores.map((crit, i) => {
+                                                        const criterionName = crit.name || crit.criterion || `Criterion ${i + 1}`;
+                                                        const maxVal = crit.maxScore || crit.weightage || 10;
+                                                        const reasoningText = crit.rationale || crit.reasoning;
+                                                        return (
+                                                            <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                                                                <div className="flex justify-between items-center mb-1">
+                                                                    <span className="font-semibold text-slate-800">{criterionName}</span>
+                                                                    <span className="font-bold text-emerald-700">{crit.score} / {maxVal} pts</span>
+                                                                </div>
+                                                                {reasoningText && (
+                                                                    <p className="text-[11px] text-slate-500 leading-tight">{reasoningText}</p>
+                                                                )}
                                                             </div>
-                                                            {crit.rationale && (
-                                                                <p className="text-[11px] text-slate-500 leading-tight">{crit.rationale}</p>
-                                                            )}
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         )}

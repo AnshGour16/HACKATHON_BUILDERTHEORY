@@ -203,7 +203,9 @@ export default function CandidateScorecardPage({ params }: { params: Promise<{ i
                             { name: app.candidate?.name, problemStatement: `${app.job?.title} at ${app.job?.companyName}` },
                             {
                                 totalScore: overallScore,
+                                summaryForJudges: evalData?.summary,
                                 summary: evalData?.summary,
+                                criteriaScores: criteriaScores,
                                 strengths: evalData?.strengths,
                                 weaknesses: evalData?.weaknesses,
                                 missingComponents: evalData?.missingSkills,
@@ -275,7 +277,7 @@ export default function CandidateScorecardPage({ params }: { params: Promise<{ i
                             </div>
                             <div className="flex items-center gap-2">
                                 <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-                                <span>Applied on {new Date(app.appliedAt).toLocaleDateString()}</span>
+                                <span>Applied on {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : 'Recently'}</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <FileText className="w-4 h-4 text-slate-400 shrink-0" />
