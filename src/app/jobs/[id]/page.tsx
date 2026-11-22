@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,7 +39,6 @@ interface IJob {
 
 export default function JobDetailPage() {
     const params = useParams();
-    const router = useRouter();
     const jobId = params?.id as string;
 
     const [job, setJob] = useState<IJob | null>(null);
@@ -78,7 +77,7 @@ export default function JobDetailPage() {
             })
             .finally(() => setLoading(false));
 
-        // Attempt to pre-fill from user session & candidate profile
+        // Pre-fill from candidate profile if logged in
         fetch('/api/candidate/profile')
             .then(res => res.json())
             .then(data => {
@@ -134,54 +133,54 @@ export default function JobDetailPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex flex-col justify-center items-center text-white gap-3">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-sm text-neutral-400">Loading position details...</p>
+            <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center text-slate-800 gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                <p className="text-xs text-slate-500 font-medium">Loading position details...</p>
             </div>
         );
     }
 
     if (error || !job) {
         return (
-            <div className="min-h-screen flex justify-center items-center p-4">
-                <Card className="max-w-md w-full border-red-500/30 bg-neutral-900/60 text-center p-6 space-y-4">
+            <div className="min-h-screen bg-slate-50 flex justify-center items-center p-4">
+                <div className="max-w-md w-full bg-white border border-slate-200 rounded-2xl text-center p-8 space-y-4 shadow-xs">
                     <AlertCircle className="w-10 h-10 text-red-500 mx-auto" />
-                    <h3 className="text-xl font-bold text-white">Job Not Found</h3>
-                    <p className="text-xs text-neutral-400">{error || 'This position is no longer accepting applications.'}</p>
-                    <Button asChild className="w-full bg-primary text-black font-semibold text-xs">
-                        <Link href="/jobs">Browse All Openings</Link>
+                    <h3 className="text-xl font-bold text-slate-900">Job Not Found</h3>
+                    <p className="text-xs text-slate-500">{error || 'This position is no longer accepting applications.'}</p>
+                    <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs">
+                        <Link href="/jobs">Browse Open Positions</Link>
                     </Button>
-                </Card>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen pb-16 px-4 md:px-8 max-w-6xl mx-auto pt-6">
+        <div className="min-h-screen bg-slate-50 pb-16 px-4 md:px-8 max-w-6xl mx-auto pt-6 text-slate-800">
             <Link
                 href="/jobs"
-                className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white mb-6 transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 mb-6 transition-colors"
             >
-                <ArrowLeft className="w-3.5 h-3.5" /> Back to All Jobs
+                <ArrowLeft className="w-4 h-4" /> Back to All Jobs
             </Link>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left 2 Cols: Job Details & Rubric */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Header Banner */}
-                    <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 md:p-8 backdrop-blur-md">
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs">
                         <div className="flex flex-wrap items-center gap-2 mb-3">
-                            <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
                                 {job.department}
                             </span>
                             <Badge
                                 variant="outline"
-                                className={`text-[10px] ${
+                                className={`text-[10px] font-semibold ${
                                     job.evaluationType === 'TECHNICAL_GITHUB'
-                                        ? 'border-indigo-500/40 text-indigo-300 bg-indigo-950/20'
+                                        ? 'border-indigo-200 text-indigo-700 bg-indigo-50'
                                         : job.evaluationType === 'NON_TECHNICAL_ASSIGNMENT'
-                                        ? 'border-amber-500/40 text-amber-300 bg-amber-950/20'
-                                        : 'border-emerald-500/40 text-emerald-300 bg-emerald-950/20'
+                                        ? 'border-amber-200 text-amber-700 bg-amber-50'
+                                        : 'border-emerald-200 text-emerald-700 bg-emerald-50'
                                 }`}
                             >
                                 {job.evaluationType === 'TECHNICAL_GITHUB' && <Github className="w-3 h-3 mr-1 inline" />}
@@ -189,27 +188,27 @@ export default function JobDetailPage() {
                                 {job.evaluationType === 'RESUME_ONLY' && <CheckCircle2 className="w-3 h-3 mr-1 inline" />}
                                 {job.evaluationType === 'TECHNICAL_GITHUB' ? 'GitHub Codebase Audit' : job.evaluationType === 'NON_TECHNICAL_ASSIGNMENT' ? 'Practical Case Study Audit' : 'Resume Matching'}
                             </Badge>
-                            <Badge variant="outline" className="border-neutral-700 text-neutral-300 text-[10px]">
+                            <Badge variant="outline" className="border-slate-200 text-slate-600 text-[10px] font-semibold">
                                 {job.experienceLevel}
                             </Badge>
                         </div>
 
-                        <h1 className="text-2xl md:text-4xl font-extrabold text-white mb-3">
+                        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3">
                             {job.title}
                         </h1>
 
-                        <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-400 border-t border-neutral-800/80 pt-4">
-                            <span className="flex items-center gap-1.5 font-medium text-neutral-200">
-                                <Building2 className="w-4 h-4 text-primary" /> {job.companyName}
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 border-t border-slate-100 pt-4">
+                            <span className="flex items-center gap-1.5 font-bold text-slate-800">
+                                <Building2 className="w-4 h-4 text-emerald-600" /> {job.companyName}
                             </span>
                             <span className="flex items-center gap-1.5">
-                                <MapPin className="w-4 h-4 text-neutral-500" /> {job.location}
+                                <MapPin className="w-4 h-4 text-slate-400" /> {job.location}
                             </span>
                             <span className="flex items-center gap-1.5">
-                                <Briefcase className="w-4 h-4 text-neutral-500" /> {job.jobType}
+                                <Briefcase className="w-4 h-4 text-slate-400" /> {job.jobType}
                             </span>
                             {job.salaryRange?.min && (
-                                <span className="flex items-center gap-1.5 font-semibold text-emerald-400">
+                                <span className="flex items-center gap-1.5 font-bold text-emerald-700">
                                     <DollarSign className="w-4 h-4" />
                                     {job.salaryRange.min.toLocaleString()} - {job.salaryRange.max?.toLocaleString()} {job.salaryRange.currency || 'USD'}
                                 </span>
@@ -218,26 +217,26 @@ export default function JobDetailPage() {
                     </div>
 
                     {/* Job Description */}
-                    <Card className="bg-neutral-900/40 border-neutral-800 backdrop-blur-sm">
+                    <Card className="bg-white border-slate-200 shadow-xs rounded-2xl">
                         <CardHeader className="pb-3">
-                            <CardTitle className="text-base font-bold text-white">About the Position</CardTitle>
+                            <CardTitle className="text-base font-bold text-slate-900">About the Role</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4 text-sm text-neutral-300 leading-relaxed whitespace-pre-line">
+                        <CardContent className="space-y-4 text-xs md:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
                             {job.description}
                         </CardContent>
                     </Card>
 
                     {/* Responsibilities */}
                     {job.responsibilities && job.responsibilities.length > 0 && (
-                        <Card className="bg-neutral-900/40 border-neutral-800 backdrop-blur-sm">
+                        <Card className="bg-white border-slate-200 shadow-xs rounded-2xl">
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-base font-bold text-white">Key Responsibilities</CardTitle>
+                                <CardTitle className="text-base font-bold text-slate-900">Key Responsibilities</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ul className="space-y-2 text-xs md:text-sm text-neutral-300">
+                                <ul className="space-y-2 text-xs md:text-sm text-slate-700">
                                     {job.responsibilities.map((resp, i) => (
                                         <li key={i} className="flex items-start gap-2">
-                                            <span className="text-primary mt-1">•</span>
+                                            <span className="text-emerald-600 font-bold">•</span>
                                             <span>{resp}</span>
                                         </li>
                                     ))}
@@ -247,16 +246,16 @@ export default function JobDetailPage() {
                     )}
 
                     {/* Requirements & Skills */}
-                    <Card className="bg-neutral-900/40 border-neutral-800 backdrop-blur-sm">
+                    <Card className="bg-white border-slate-200 shadow-xs rounded-2xl">
                         <CardHeader className="pb-3">
-                            <CardTitle className="text-base font-bold text-white">Required Skills & Capabilities</CardTitle>
+                            <CardTitle className="text-base font-bold text-slate-900">Required Skills &amp; Qualifications</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="flex flex-wrap gap-2">
                                 {job.requiredSkills.map((skill, i) => (
                                     <span
                                         key={i}
-                                        className="px-3 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-xs font-semibold text-primary"
+                                        className="px-3 py-1 rounded-md bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-800"
                                     >
                                         {skill}
                                     </span>
@@ -264,10 +263,10 @@ export default function JobDetailPage() {
                             </div>
 
                             {job.requirements && job.requirements.length > 0 && (
-                                <ul className="space-y-2 text-xs md:text-sm text-neutral-300 pt-2 border-t border-neutral-800">
+                                <ul className="space-y-2 text-xs md:text-sm text-slate-700 pt-2 border-t border-slate-100">
                                     {job.requirements.map((req, i) => (
                                         <li key={i} className="flex items-start gap-2">
-                                            <span className="text-neutral-500 mt-1">✓</span>
+                                            <span className="text-slate-400 font-bold">✓</span>
                                             <span>{req}</span>
                                         </li>
                                     ))}
@@ -276,15 +275,15 @@ export default function JobDetailPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Configurable Evaluation Rubric Preview */}
+                    {/* Transparent Evaluation Rubric Preview */}
                     {job.evaluationRubric && job.evaluationRubric.length > 0 && (
-                        <Card className="border-indigo-500/20 bg-indigo-950/10 backdrop-blur-sm">
+                        <Card className="border-indigo-100 bg-indigo-50/50 shadow-xs rounded-2xl">
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
-                                    <Target className="w-4 h-4 text-indigo-400" /> Transparent AI Evaluation Rubric (100 pts)
+                                <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                    <Target className="w-4 h-4 text-indigo-600" /> Transparent AI Evaluation Rubric (100 Points)
                                 </CardTitle>
-                                <CardDescription className="text-xs text-neutral-400">
-                                    Applications are evaluated by Gemini AI strictly based on these objective criteria:
+                                <CardDescription className="text-xs text-slate-600">
+                                    Gemini AI evaluates applicants against these exact objective criteria:
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -292,10 +291,10 @@ export default function JobDetailPage() {
                                     {job.evaluationRubric.map((item, idx) => (
                                         <div
                                             key={idx}
-                                            className="flex items-center justify-between p-2.5 rounded-lg bg-neutral-950/60 border border-neutral-800 text-xs"
+                                            className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-indigo-100 text-xs"
                                         >
-                                            <span className="font-medium text-neutral-200">{item.name}</span>
-                                            <span className="font-bold text-indigo-300 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-800">
+                                            <span className="font-semibold text-slate-800">{item.name}</span>
+                                            <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
                                                 {item.weight} pts
                                             </span>
                                         </div>
@@ -309,128 +308,128 @@ export default function JobDetailPage() {
                 {/* Right Col: Instant Application Card */}
                 <div className="space-y-6">
                     {submitSuccess ? (
-                        <Card className="border-emerald-500/40 bg-emerald-950/20 backdrop-blur-md p-6 text-center space-y-4 shadow-xl">
-                            <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mx-auto">
+                        <Card className="border-emerald-200 bg-emerald-50/60 p-6 text-center space-y-4 shadow-md rounded-2xl">
+                            <div className="w-12 h-12 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-700 mx-auto">
                                 <CheckCircle2 className="w-7 h-7" />
                             </div>
-                            <h3 className="text-xl font-extrabold text-white">Application Submitted!</h3>
-                            <p className="text-xs text-neutral-300 leading-relaxed">
+                            <h3 className="text-xl font-extrabold text-slate-900">Application Submitted!</h3>
+                            <p className="text-xs text-slate-600 leading-relaxed">
                                 Gemini AI has analyzed your profile and demonstration evidence against the job rubric.
                             </p>
 
                             {submitSuccess.evaluation?.matchScore !== undefined && (
-                                <div className="p-4 bg-neutral-950 rounded-xl border border-neutral-800 space-y-1">
-                                    <span className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider">
+                                <div className="p-4 bg-white rounded-xl border border-emerald-200 shadow-xs space-y-1">
+                                    <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
                                         Initial AI Match Score
                                     </span>
-                                    <div className="text-3xl font-black text-emerald-400">
+                                    <div className="text-3xl font-black text-emerald-600">
                                         {submitSuccess.evaluation.matchScore}%
                                     </div>
-                                    <p className="text-[11px] text-neutral-400 line-clamp-2">
+                                    <p className="text-[11px] text-slate-600 line-clamp-2">
                                         {submitSuccess.evaluation.summary}
                                     </p>
                                 </div>
                             )}
 
                             <div className="space-y-2 pt-2">
-                                <Button asChild className="w-full bg-primary hover:bg-primary/90 text-black font-bold text-xs h-10">
+                                <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-10 shadow-xs">
                                     <Link href="/dashboard">View Application in Dashboard</Link>
                                 </Button>
                                 <Button
                                     variant="ghost"
                                     onClick={() => setSubmitSuccess(null)}
-                                    className="w-full text-xs text-neutral-400 hover:text-white"
+                                    className="w-full text-xs text-slate-600 hover:text-slate-900"
                                 >
                                     Submit Another Application
                                 </Button>
                             </div>
                         </Card>
                     ) : (
-                        <Card className="border-primary/20 bg-neutral-900/60 backdrop-blur-md sticky top-6 shadow-2xl">
+                        <Card className="bg-white border-slate-200 shadow-sm sticky top-20 rounded-2xl">
                             <CardHeader className="pb-4">
-                                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4 text-primary" /> Apply for this Role
+                                <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-emerald-600" /> Apply for this Position
                                 </CardTitle>
-                                <CardDescription className="text-xs">
+                                <CardDescription className="text-xs text-slate-500">
                                     Demonstrate your practical skills to stand out to the recruiting team.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <form onSubmit={handleApply} className="space-y-4">
                                     <div className="space-y-1.5">
-                                        <label htmlFor="appCandidateName" className="text-xs font-semibold text-neutral-300">Your Full Name *</label>
+                                        <label htmlFor="appCandName" className="text-xs font-semibold text-slate-700">Full Name *</label>
                                         <Input
-                                            id="appCandidateName"
+                                            id="appCandName"
                                             required
                                             placeholder="Jane Doe"
                                             value={candidateName}
                                             onChange={(e) => setCandidateName(e.target.value)}
-                                            className="bg-neutral-950 border-neutral-800 text-xs h-9 text-white"
+                                            className="bg-slate-50 border-slate-200 text-xs h-9 text-slate-900 focus:bg-white"
                                         />
                                     </div>
 
                                     <div className="space-y-1.5">
-                                        <label htmlFor="appCandidateEmail" className="text-xs font-semibold text-neutral-300">Email Address *</label>
+                                        <label htmlFor="appCandEmail" className="text-xs font-semibold text-slate-700">Email Address *</label>
                                         <Input
-                                            id="appCandidateEmail"
+                                            id="appCandEmail"
                                             type="email"
                                             required
                                             placeholder="jane@example.com"
                                             value={candidateEmail}
                                             onChange={(e) => setCandidateEmail(e.target.value)}
-                                            className="bg-neutral-950 border-neutral-800 text-xs h-9 text-white"
+                                            className="bg-slate-50 border-slate-200 text-xs h-9 text-slate-900 focus:bg-white"
                                         />
                                     </div>
 
                                     <div className="space-y-1.5">
-                                        <label htmlFor="appCandidatePhone" className="text-xs font-semibold text-neutral-300">Phone Number</label>
+                                        <label htmlFor="appCandPhone" className="text-xs font-semibold text-slate-700">Phone Number</label>
                                         <Input
-                                            id="appCandidatePhone"
+                                            id="appCandPhone"
                                             type="tel"
                                             placeholder="+1 (555) 000-0000"
                                             value={candidatePhone}
                                             onChange={(e) => setCandidatePhone(e.target.value)}
-                                            className="bg-neutral-950 border-neutral-800 text-xs h-9 text-white"
+                                            className="bg-slate-50 border-slate-200 text-xs h-9 text-slate-900 focus:bg-white"
                                         />
                                     </div>
 
                                     {/* Role-Specific Demonstrations */}
                                     {job.evaluationType === 'TECHNICAL_GITHUB' ? (
-                                        <div className="space-y-1.5 p-3 rounded-xl bg-indigo-950/20 border border-indigo-500/30">
-                                            <label htmlFor="appGithubRepo" className="text-xs font-semibold text-indigo-300 flex items-center gap-1.5">
+                                        <div className="space-y-1.5 p-3 rounded-xl bg-indigo-50/70 border border-indigo-200">
+                                            <label htmlFor="appCandGithub" className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
                                                 <Github className="w-3.5 h-3.5" /> Public GitHub Repository URL *
                                             </label>
-                                            <p className="text-[11px] text-neutral-400">
-                                                Provide a project or open-source codebase you built that reflects the required stack.
+                                            <p className="text-[11px] text-slate-600">
+                                                Provide a project repository you built that showcases your technical architecture and code hygiene.
                                             </p>
                                             <Input
-                                                id="appGithubRepo"
+                                                id="appCandGithub"
                                                 type="url"
                                                 required
                                                 placeholder="https://github.com/your-username/project-repo"
                                                 value={githubRepoUrl}
                                                 onChange={(e) => setGithubRepoUrl(e.target.value)}
-                                                className="bg-neutral-950 border-neutral-800 text-xs h-9 text-white"
+                                                className="bg-white border-indigo-200 text-xs h-9 text-slate-900"
                                             />
                                         </div>
                                     ) : job.evaluationType === 'NON_TECHNICAL_ASSIGNMENT' ? (
-                                        <div className="space-y-1.5 p-3 rounded-xl bg-amber-950/20 border border-amber-500/30">
-                                            <label htmlFor="appAssignment" className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                                        <div className="space-y-1.5 p-3 rounded-xl bg-amber-50/70 border border-amber-200">
+                                            <label htmlFor="appCandAssign" className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
                                                 <FileText className="w-3.5 h-3.5" /> Practical Assignment Solution *
                                             </label>
                                             {job.assignmentBrief && (
-                                                <p className="text-[11px] text-neutral-300 bg-neutral-950 p-2 rounded border border-neutral-800">
+                                                <p className="text-[11px] text-slate-700 bg-white p-2 rounded-lg border border-amber-200 font-medium">
                                                     <strong>Case Brief:</strong> {job.assignmentBrief}
                                                 </p>
                                             )}
                                             <textarea
-                                                id="appAssignment"
+                                                id="appCandAssign"
                                                 rows={4}
                                                 required
                                                 placeholder="Detail your practical solution, campaign strategy, or analysis framework..."
                                                 value={assignmentSubmission}
                                                 onChange={(e) => setAssignmentSubmission(e.target.value)}
-                                                className="w-full p-2.5 rounded bg-neutral-950 border border-neutral-800 text-xs text-white placeholder:text-neutral-500 focus:outline-none focus:border-primary"
+                                                className="w-full p-2.5 rounded-lg bg-white border border-amber-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-400"
                                             />
                                         </div>
                                     ) : null}
@@ -438,37 +437,37 @@ export default function JobDetailPage() {
                                     {/* Resume Text / Highlights */}
                                     <div className="space-y-1.5">
                                         <div className="flex justify-between items-center">
-                                            <label htmlFor="appResumeText" className="text-xs font-semibold text-neutral-300">Resume & Experience Highlights *</label>
-                                            <Link href="/candidate/profile" className="text-[10px] text-primary hover:underline">
+                                            <label htmlFor="appCandResume" className="text-xs font-semibold text-slate-700">Resume &amp; Career Summary *</label>
+                                            <Link href="/candidate/profile" className="text-[10px] text-emerald-600 font-bold hover:underline">
                                                 Upload PDF Resume
                                             </Link>
                                         </div>
                                         <textarea
-                                            id="appResumeText"
+                                            id="appCandResume"
                                             rows={3}
                                             required
-                                            placeholder="Paste your resume summary, top work experiences, or certifications..."
+                                            placeholder="Paste your career summary, top achievements, or certifications..."
                                             value={resumeText}
                                             onChange={(e) => setResumeText(e.target.value)}
-                                            className="w-full p-2.5 rounded bg-neutral-950 border border-neutral-800 text-xs text-white placeholder:text-neutral-500 focus:outline-none focus:border-primary"
+                                            className="w-full p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-500"
                                         />
                                     </div>
 
                                     {/* Cover Note */}
                                     <div className="space-y-1.5">
-                                        <label htmlFor="appCoverLetter" className="text-xs font-semibold text-neutral-300">Notes for the Recruiter</label>
+                                        <label htmlFor="appCandCover" className="text-xs font-semibold text-slate-700">Notes for the Hiring Team</label>
                                         <textarea
-                                            id="appCoverLetter"
+                                            id="appCandCover"
                                             rows={2}
                                             placeholder="Why are you a great match for this role?"
                                             value={coverLetter}
                                             onChange={(e) => setCoverLetter(e.target.value)}
-                                            className="w-full p-2.5 rounded bg-neutral-950 border border-neutral-800 text-xs text-white placeholder:text-neutral-500 focus:outline-none focus:border-primary"
+                                            className="w-full p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-500"
                                         />
                                     </div>
 
                                     {submitError && (
-                                        <div className="p-2.5 rounded bg-red-950/40 border border-red-500/40 text-xs text-red-400">
+                                        <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 font-semibold">
                                             {submitError}
                                         </div>
                                     )}
@@ -476,7 +475,7 @@ export default function JobDetailPage() {
                                     <Button
                                         type="submit"
                                         disabled={isSubmitting}
-                                        className="w-full bg-primary hover:bg-primary/90 text-black font-bold text-xs h-10 shadow-lg shadow-primary/20"
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-10 shadow-sm"
                                     >
                                         {isSubmitting ? (
                                             <>
@@ -487,7 +486,7 @@ export default function JobDetailPage() {
                                         )}
                                     </Button>
 
-                                    <p className="text-[11px] text-neutral-500 text-center">
+                                    <p className="text-[11px] text-slate-500 text-center font-medium">
                                         Zero code execution is performed. Your submission is evaluated statically against the role&apos;s rubric.
                                     </p>
                                 </form>

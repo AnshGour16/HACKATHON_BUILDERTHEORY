@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hackathon ATS | AI-Powered Screening",
-  description: "Automated Hackathon Project Evaluator using Gemini AI",
+  title: "HireSphere AI | All-Industry Talent Intelligence & Recruitment",
+  description: "AI-Powered Talent Intelligence Platform evaluating practical code, case studies, and career capabilities with Gemini AI.",
 };
 
 export default function RootLayout({
@@ -26,7 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased dark bg-background text-foreground`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 text-slate-900 min-h-screen`}
       >
         <Navbar />
         {children}

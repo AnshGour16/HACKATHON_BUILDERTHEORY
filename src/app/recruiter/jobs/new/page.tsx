@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Briefcase, Plus, Trash2, ArrowLeft, ArrowRight,
-    Sparkles, Target, Github, FileText, CheckCircle2, Loader2
+    Target, Github, FileText, CheckCircle2, Loader2
 } from 'lucide-react';
 
 interface IRubricItem {
@@ -217,63 +217,63 @@ export default function NewJobPage() {
     };
 
     return (
-        <div className="min-h-screen pb-16 px-4 md:px-8 max-w-4xl mx-auto pt-6">
+        <div className="min-h-screen bg-slate-50 pb-16 px-4 md:px-8 max-w-4xl mx-auto pt-6 text-slate-800">
             <Link
                 href="/recruiter"
-                className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white mb-6 transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 mb-6 transition-colors"
             >
-                <ArrowLeft className="w-3.5 h-3.5" /> Back to Recruiter Dashboard
+                <ArrowLeft className="w-4 h-4" /> Back to Recruiter Dashboard
             </Link>
 
             <div className="space-y-6">
                 <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-700 mb-2">
                         <Briefcase className="w-3.5 h-3.5" />
                         Role-Specific AI Calibration
                     </div>
-                    <h1 className="text-3xl font-extrabold text-white">Create New Job Opening</h1>
-                    <p className="text-neutral-400 text-sm mt-1">
+                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Create New Job Opening</h1>
+                    <p className="text-slate-500 text-xs md:text-sm mt-1">
                         Define job parameters and configure the exact 100-point AI evaluation rubric used to score candidates.
                     </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Basic Job Details */}
-                    <Card className="bg-neutral-900/60 border-neutral-800 backdrop-blur-md">
+                    <Card className="bg-white border-slate-200 shadow-xs rounded-2xl">
                         <CardHeader className="pb-3">
-                            <CardTitle className="text-base font-bold text-white">1. Basic Information</CardTitle>
+                            <CardTitle className="text-base font-bold text-slate-900">1. Basic Information</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="newJobTitle" className="text-xs text-neutral-300">Job Title *</Label>
+                                    <Label htmlFor="postJobTitle" className="text-xs font-semibold text-slate-700">Job Title *</Label>
                                     <Input
-                                        id="newJobTitle"
+                                        id="postJobTitle"
                                         required
                                         placeholder="e.g. Senior Full-Stack Engineer"
                                         value={title}
                                         onChange={(e) => setTitle(e.target.value)}
-                                        className="bg-neutral-950 border-neutral-800 text-xs h-9 text-white"
+                                        className="bg-slate-50 border-slate-200 text-xs h-9 text-slate-900 focus:bg-white"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="newJobCompany" className="text-xs text-neutral-300">Hiring Company *</Label>
+                                    <Label htmlFor="postJobCompany" className="text-xs font-semibold text-slate-700">Hiring Company *</Label>
                                     <Input
-                                        id="newJobCompany"
+                                        id="postJobCompany"
                                         required
                                         placeholder="e.g. Acme Tech Corp"
                                         value={companyName}
                                         onChange={(e) => setCompanyName(e.target.value)}
-                                        className="bg-neutral-950 border-neutral-800 text-xs h-9 text-white"
+                                        className="bg-slate-50 border-slate-200 text-xs h-9 text-slate-900 focus:bg-white"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="newJobDept" className="text-xs text-neutral-300">Industry / Department *</Label>
+                                    <Label htmlFor="postJobDept" className="text-xs font-semibold text-slate-700">Industry / Department *</Label>
                                     <select
-                                        id="newJobDept"
+                                        id="postJobDept"
                                         value={department}
                                         onChange={(e) => handleDepartmentChange(e.target.value)}
-                                        className="w-full h-9 px-3 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-white font-medium focus:ring-1 focus:ring-primary"
+                                        className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium focus:bg-white focus:outline-none focus:border-emerald-500"
                                     >
                                         {Object.keys(DEPARTMENT_RUBRICS).map(dept => (
                                             <option key={dept} value={dept}>{dept}</option>
@@ -281,23 +281,23 @@ export default function NewJobPage() {
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="newJobLocation" className="text-xs text-neutral-300">Location *</Label>
+                                    <Label htmlFor="postJobLocation" className="text-xs font-semibold text-slate-700">Location *</Label>
                                     <Input
-                                        id="newJobLocation"
+                                        id="postJobLocation"
                                         required
                                         placeholder="e.g. Remote, US or San Francisco, CA"
                                         value={location}
                                         onChange={(e) => setLocation(e.target.value)}
-                                        className="bg-neutral-950 border-neutral-800 text-xs h-9 text-white"
+                                        className="bg-slate-50 border-slate-200 text-xs h-9 text-slate-900 focus:bg-white"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="newJobType" className="text-xs text-neutral-300">Employment Type</Label>
+                                    <Label htmlFor="postJobType" className="text-xs font-semibold text-slate-700">Employment Type</Label>
                                     <select
-                                        id="newJobType"
+                                        id="postJobType"
                                         value={jobType}
                                         onChange={(e) => setJobType(e.target.value)}
-                                        className="w-full h-9 px-3 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-white font-medium focus:ring-1 focus:ring-primary"
+                                        className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium focus:bg-white focus:outline-none focus:border-emerald-500"
                                     >
                                         <option value="Full-time">Full-time</option>
                                         <option value="Part-time">Part-time</option>
@@ -307,12 +307,12 @@ export default function NewJobPage() {
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="newJobExp" className="text-xs text-neutral-300">Experience Level</Label>
+                                    <Label htmlFor="postJobExp" className="text-xs font-semibold text-slate-700">Experience Level</Label>
                                     <select
-                                        id="newJobExp"
+                                        id="postJobExp"
                                         value={experienceLevel}
                                         onChange={(e) => setExperienceLevel(e.target.value)}
-                                        className="w-full h-9 px-3 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-white font-medium focus:ring-1 focus:ring-primary"
+                                        className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium focus:bg-white focus:outline-none focus:border-emerald-500"
                                     >
                                         <option value="Entry-Level">Entry-Level</option>
                                         <option value="Mid-Level">Mid-Level</option>
@@ -325,83 +325,83 @@ export default function NewJobPage() {
 
                             <div className="grid grid-cols-3 gap-3 pt-2">
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="newJobMinSalary" className="text-xs text-neutral-300">Min Salary</Label>
+                                    <Label htmlFor="postJobMinSal" className="text-xs font-semibold text-slate-700">Min Salary</Label>
                                     <Input
-                                        id="newJobMinSalary"
+                                        id="postJobMinSal"
                                         type="number"
                                         placeholder="100000"
                                         value={minSalary}
                                         onChange={(e) => setMinSalary(e.target.value)}
-                                        className="bg-neutral-950 border-neutral-800 text-xs h-9 text-white"
+                                        className="bg-slate-50 border-slate-200 text-xs h-9 text-slate-900 focus:bg-white"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="newJobMaxSalary" className="text-xs text-neutral-300">Max Salary</Label>
+                                    <Label htmlFor="postJobMaxSal" className="text-xs font-semibold text-slate-700">Max Salary</Label>
                                     <Input
-                                        id="newJobMaxSalary"
+                                        id="postJobMaxSal"
                                         type="number"
                                         placeholder="140000"
                                         value={maxSalary}
                                         onChange={(e) => setMaxSalary(e.target.value)}
-                                        className="bg-neutral-950 border-neutral-800 text-xs h-9 text-white"
+                                        className="bg-slate-50 border-slate-200 text-xs h-9 text-slate-900 focus:bg-white"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="newJobCurrency" className="text-xs text-neutral-300">Currency</Label>
+                                    <Label htmlFor="postJobCur" className="text-xs font-semibold text-slate-700">Currency</Label>
                                     <Input
-                                        id="newJobCurrency"
+                                        id="postJobCur"
                                         placeholder="USD"
                                         value={currency}
                                         onChange={(e) => setCurrency(e.target.value)}
-                                        className="bg-neutral-950 border-neutral-800 text-xs h-9 text-white"
+                                        className="bg-slate-50 border-slate-200 text-xs h-9 text-slate-900 focus:bg-white"
                                     />
                                 </div>
                             </div>
 
                             <div className="space-y-1.5">
-                                <Label htmlFor="newJobSkills" className="text-xs text-neutral-300">Required Skills (comma-separated) *</Label>
+                                <Label htmlFor="postJobSkills" className="text-xs font-semibold text-slate-700">Required Skills (comma-separated) *</Label>
                                 <Input
-                                    id="newJobSkills"
+                                    id="postJobSkills"
                                     required
                                     placeholder="React, TypeScript, GraphQL, Docker"
                                     value={skillsInput}
                                     onChange={(e) => setSkillsInput(e.target.value)}
-                                    className="bg-neutral-950 border-neutral-800 text-xs h-9 text-white"
+                                    className="bg-slate-50 border-slate-200 text-xs h-9 text-slate-900 focus:bg-white"
                                 />
                             </div>
 
                             <div className="space-y-1.5">
-                                <Label htmlFor="newJobDesc" className="text-xs text-neutral-300">Role Description *</Label>
+                                <Label htmlFor="postJobDesc" className="text-xs font-semibold text-slate-700">Role Description *</Label>
                                 <textarea
-                                    id="newJobDesc"
+                                    id="postJobDesc"
                                     rows={3}
                                     required
-                                    placeholder="Overview of the position, team mission, and high-level expectations..."
+                                    placeholder="Overview of the position, team mission, and expectations..."
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    className="w-full p-2.5 rounded-md bg-neutral-950 border border-neutral-800 text-xs text-white placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                                    className="w-full p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-500"
                                 />
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="newJobResp" className="text-xs text-neutral-300">Key Responsibilities (one per line)</Label>
+                                    <Label htmlFor="postJobResp" className="text-xs font-semibold text-slate-700">Key Responsibilities (one per line)</Label>
                                     <textarea
-                                        id="newJobResp"
+                                        id="postJobResp"
                                         rows={3}
                                         value={responsibilitiesInput}
                                         onChange={(e) => setResponsibilitiesInput(e.target.value)}
-                                        className="w-full p-2.5 rounded-md bg-neutral-950 border border-neutral-800 text-xs text-white placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                                        className="w-full p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-500"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="newJobReq" className="text-xs text-neutral-300">Job Requirements (one per line)</Label>
+                                    <Label htmlFor="postJobReq" className="text-xs font-semibold text-slate-700">Job Requirements (one per line)</Label>
                                     <textarea
-                                        id="newJobReq"
+                                        id="postJobReq"
                                         rows={3}
                                         value={requirementsInput}
                                         onChange={(e) => setRequirementsInput(e.target.value)}
-                                        className="w-full p-2.5 rounded-md bg-neutral-950 border border-neutral-800 text-xs text-white placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                                        className="w-full p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-500"
                                     />
                                 </div>
                             </div>
@@ -409,12 +409,12 @@ export default function NewJobPage() {
                     </Card>
 
                     {/* Evaluation Method & Rubric Configuration */}
-                    <Card className="bg-neutral-900/60 border-neutral-800 backdrop-blur-md">
+                    <Card className="bg-white border-slate-200 shadow-xs rounded-2xl">
                         <CardHeader className="pb-3">
-                            <CardTitle className="text-base font-bold text-white flex items-center gap-2">
-                                <Target className="w-4 h-4 text-primary" /> 2. AI Evaluation Mode & Rubric (100 Points)
+                            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <Target className="w-4 h-4 text-emerald-600" /> 2. AI Evaluation Mode &amp; Rubric (100 Points)
                             </CardTitle>
-                            <CardDescription className="text-xs">
+                            <CardDescription className="text-xs text-slate-500">
                                 Configure how Gemini AI audits and scores candidate evidence for this specific role.
                             </CardDescription>
                         </CardHeader>
@@ -422,62 +422,62 @@ export default function NewJobPage() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <div
                                     onClick={() => setEvaluationType('TECHNICAL_GITHUB')}
-                                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                                         evaluationType === 'TECHNICAL_GITHUB'
-                                            ? 'border-indigo-500 bg-indigo-950/30'
-                                            : 'border-neutral-800 bg-neutral-950/40 hover:border-neutral-700'
+                                            ? 'border-indigo-500 bg-indigo-50/60 shadow-xs ring-1 ring-indigo-500'
+                                            : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                                     }`}
                                 >
-                                    <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs mb-1">
+                                    <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs mb-1">
                                         <Github className="w-4 h-4" /> GitHub Codebase Audit
                                     </div>
-                                    <p className="text-[11px] text-neutral-400">
-                                        Inspects genuine repo files, architecture, tests, error handling & git history.
+                                    <p className="text-[11px] text-slate-600">
+                                        Inspects genuine repo files, architecture, tests, error handling &amp; git history.
                                     </p>
                                 </div>
 
                                 <div
                                     onClick={() => setEvaluationType('NON_TECHNICAL_ASSIGNMENT')}
-                                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                                         evaluationType === 'NON_TECHNICAL_ASSIGNMENT'
-                                            ? 'border-amber-500 bg-amber-950/30'
-                                            : 'border-neutral-800 bg-neutral-950/40 hover:border-neutral-700'
+                                            ? 'border-amber-500 bg-amber-50/60 shadow-xs ring-1 ring-amber-500'
+                                            : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                                     }`}
                                 >
-                                    <div className="flex items-center gap-2 text-amber-400 font-bold text-xs mb-1">
+                                    <div className="flex items-center gap-2 text-amber-800 font-bold text-xs mb-1">
                                         <FileText className="w-4 h-4" /> Practical Case Study
                                     </div>
-                                    <p className="text-[11px] text-neutral-400">
+                                    <p className="text-[11px] text-slate-600">
                                         Audits sales pitches, marketing campaigns, financial models, or support scripts.
                                     </p>
                                 </div>
 
                                 <div
                                     onClick={() => setEvaluationType('RESUME_ONLY')}
-                                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                                         evaluationType === 'RESUME_ONLY'
-                                            ? 'border-emerald-500 bg-emerald-950/30'
-                                            : 'border-neutral-800 bg-neutral-950/40 hover:border-neutral-700'
+                                            ? 'border-emerald-500 bg-emerald-50/60 shadow-xs ring-1 ring-emerald-500'
+                                            : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                                     }`}
                                 >
-                                    <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs mb-1">
+                                    <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs mb-1">
                                         <CheckCircle2 className="w-4 h-4" /> Resume-Only Match
                                     </div>
-                                    <p className="text-[11px] text-neutral-400">
+                                    <p className="text-[11px] text-slate-600">
                                         Deep contextual semantic matching against candidate career experience and skills.
                                     </p>
                                 </div>
                             </div>
 
                             {evaluationType === 'NON_TECHNICAL_ASSIGNMENT' && (
-                                <div className="space-y-1.5 p-3 rounded-xl bg-amber-950/10 border border-amber-500/30">
-                                    <Label htmlFor="newJobAssignmentBrief" className="text-xs font-semibold text-amber-300">Assignment Brief / Prompt for Candidates *</Label>
+                                <div className="space-y-1.5 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                                    <Label htmlFor="postJobAssignBrief" className="text-xs font-bold text-amber-900">Assignment Brief / Prompt for Candidates *</Label>
                                     <textarea
-                                        id="newJobAssignmentBrief"
+                                        id="postJobAssignBrief"
                                         rows={3}
                                         value={assignmentBrief}
                                         onChange={(e) => setAssignmentBrief(e.target.value)}
-                                        className="w-full p-2.5 rounded-md bg-neutral-950 border border-neutral-800 text-xs text-white placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                                        className="w-full p-2.5 rounded-lg bg-white border border-amber-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-500"
                                     />
                                 </div>
                             )}
@@ -485,11 +485,11 @@ export default function NewJobPage() {
                             {/* Rubric Weights */}
                             <div className="space-y-3 pt-2">
                                 <div className="flex items-center justify-between">
-                                    <div className="text-xs font-semibold text-neutral-300 flex items-center gap-2">
+                                    <div className="text-xs font-bold text-slate-700 flex items-center gap-2">
                                         <span>Rubric Criteria Breakdown</span>
                                         <Badge
                                             variant="outline"
-                                            className={`text-[10px] ${totalWeight === 100 ? 'border-emerald-500 text-emerald-400' : 'border-red-500 text-red-400'}`}
+                                            className={`text-[10px] font-bold ${totalWeight === 100 ? 'border-emerald-300 text-emerald-700 bg-emerald-50' : 'border-red-300 text-red-700 bg-red-50'}`}
                                         >
                                             Total: {totalWeight} / 100 Points
                                         </Badge>
@@ -499,7 +499,7 @@ export default function NewJobPage() {
                                         variant="outline"
                                         size="sm"
                                         onClick={addRubricItem}
-                                        className="h-7 text-xs border-neutral-800 text-neutral-300"
+                                        className="h-7 text-xs border-slate-300 text-slate-700 font-semibold"
                                     >
                                         <Plus className="w-3 h-3 mr-1" /> Add Criterion
                                     </Button>
@@ -509,12 +509,12 @@ export default function NewJobPage() {
                                     {rubric.map((item, idx) => (
                                         <div
                                             key={idx}
-                                            className="flex items-center gap-2 p-2 rounded-lg bg-neutral-950/70 border border-neutral-800"
+                                            className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200"
                                         >
                                             <Input
                                                 value={item.name}
                                                 onChange={(e) => updateRubricItem(idx, 'name', e.target.value)}
-                                                className="bg-transparent border-none text-xs text-white h-7 flex-1 focus:ring-0"
+                                                className="bg-transparent border-none text-xs text-slate-900 h-7 flex-1 focus:ring-0 font-medium"
                                                 placeholder="Criterion name"
                                             />
                                             <div className="flex items-center gap-1 shrink-0">
@@ -522,15 +522,15 @@ export default function NewJobPage() {
                                                     type="number"
                                                     value={item.weight}
                                                     onChange={(e) => updateRubricItem(idx, 'weight', Number(e.target.value))}
-                                                    className="w-16 h-7 text-xs bg-neutral-900 border-neutral-700 text-center font-bold text-primary"
+                                                    className="w-16 h-7 text-xs bg-white border-slate-300 text-center font-bold text-emerald-700"
                                                 />
-                                                <span className="text-xs text-neutral-500 font-semibold">pts</span>
+                                                <span className="text-xs text-slate-500 font-semibold">pts</span>
                                             </div>
                                             {rubric.length > 1 && (
                                                 <button
                                                     type="button"
                                                     onClick={() => removeRubricItem(idx)}
-                                                    className="text-neutral-500 hover:text-red-400 p-1"
+                                                    className="text-slate-400 hover:text-red-500 p-1"
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
@@ -543,7 +543,7 @@ export default function NewJobPage() {
                     </Card>
 
                     {error && (
-                        <div className="p-3 rounded-lg bg-red-950/40 border border-red-500/40 text-xs text-red-400 text-center font-medium">
+                        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 text-center font-semibold">
                             {error}
                         </div>
                     )}
@@ -553,14 +553,14 @@ export default function NewJobPage() {
                             type="button"
                             variant="ghost"
                             onClick={() => router.push('/recruiter')}
-                            className="text-xs text-neutral-400 hover:text-white"
+                            className="text-xs text-slate-600 hover:text-slate-900"
                         >
                             Cancel
                         </Button>
                         <Button
                             type="submit"
                             disabled={isSubmitting || totalWeight !== 100}
-                            className="bg-primary hover:bg-primary/90 text-black font-bold text-xs h-10 px-6 shadow-lg shadow-primary/20"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-10 px-6 shadow-sm"
                         >
                             {isSubmitting ? (
                                 <>

@@ -2,14 +2,13 @@
 
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    ArrowLeft, Download, Github, ExternalLink, CheckCircle2,
-    AlertTriangle, ShieldCheck, Code2, Layers, Activity,
-    Calendar, User, MapPin, Mail, Phone, Briefcase, Award,
-    Check, X, FileText, Wrench, MessageSquare, Star
+    ArrowLeft, Download, Github, CheckCircle2,
+    AlertTriangle, ShieldCheck,
+    Calendar, User, MapPin, Mail, Phone,
+    FileText, MessageSquare, Loader2, Save
 } from 'lucide-react';
 import { generateFeedbackPDF } from '@/lib/pdf-generator';
 
@@ -92,23 +91,21 @@ export default function CandidateScorecardPage({ params }: { params: Promise<{ i
     const [isSavingNotes, setIsSavingNotes] = useState(false);
     const [statusSuccess, setStatusSuccess] = useState<string | null>(null);
 
-    const fetchDetail = async () => {
-        try {
-            const res = await fetch(`/api/applications/${unwrappedParams.id}`);
-            const data = await res.json();
-            if (data.success) {
-                setApp(data.data);
-                setNotes(data.data.recruiterNotes || '');
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
-        fetchDetail();
+        let isCancelled = false;
+        fetch(`/api/applications/${unwrappedParams.id}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!isCancelled && data.success) {
+                    setApp(data.data);
+                    setNotes(data.data.recruiterNotes || '');
+                }
+            })
+            .catch(console.error)
+            .finally(() => {
+                if (!isCancelled) setLoading(false);
+            });
+        return () => { isCancelled = true; };
     }, [unwrappedParams.id]);
 
     const handleUpdateStatus = async (newStatus: string) => {
@@ -120,12 +117,12 @@ export default function CandidateScorecardPage({ params }: { params: Promise<{ i
                 body: JSON.stringify({ status: newStatus })
             });
             if (res.ok) {
-                setStatusSuccess(`Stage updated to ${newStatus}`);
+                setApp({ ...app, status: newStatus as IApplicationDetail['status'] });
+                setStatusSuccess(`Status updated to ${newStatus}`);
                 setTimeout(() => setStatusSuccess(null), 3000);
-                fetchDetail();
             }
-        } catch (err) {
-            console.error(err);
+        } catch (e) {
+            console.error('Failed to update status:', e);
         }
     };
 
@@ -133,369 +130,416 @@ export default function CandidateScorecardPage({ params }: { params: Promise<{ i
         if (!app) return;
         setIsSavingNotes(true);
         try {
-            await fetch(`/api/applications/${app._id}`, {
+            const res = await fetch(`/api/applications/${app._id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ recruiterNotes: notes })
             });
-            setStatusSuccess('Recruiter notes saved.');
-            setTimeout(() => setStatusSuccess(null), 3000);
-        } catch (err) {
-            console.error(err);
+            if (res.ok) {
+                setStatusSuccess('Recruiter notes saved.');
+                setTimeout(() => setStatusSuccess(null), 3000);
+            }
+        } catch (e) {
+            console.error('Failed to save notes:', e);
         } finally {
             setIsSavingNotes(false);
         }
     };
 
     if (loading) {
-        return <div className="min-h-screen bg-neutral-950 flex items-center justify-center text-white">Loading candidate evaluation scorecard...</div>;
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center text-slate-800 gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                <p className="text-sm text-slate-500 font-medium">Loading candidate deep-dive scorecard...</p>
+            </div>
+        );
     }
 
     if (!app) {
-        return <div className="min-h-screen bg-neutral-950 flex items-center justify-center text-white">Application record not found.</div>;
+        return (
+            <div className="min-h-screen bg-slate-50 flex justify-center items-center p-4">
+                <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center max-w-md shadow-xs space-y-4">
+                    <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
+                    <h2 className="text-lg font-bold text-slate-900">Application Not Found</h2>
+                    <p className="text-xs text-slate-500">The requested candidate record could not be loaded.</p>
+                    <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs">
+                        <Link href="/recruiter">Return to Recruiter Dashboard</Link>
+                    </Button>
+                </div>
+            </div>
+        );
     }
 
-    const ai = app.aiEvaluation;
-    const profile = app.candidateProfile;
-    const matchScore = app.matchScore || ai?.overallMatchScore || 85;
+    const evalData = app.aiEvaluation;
+    const overallScore = app.matchScore || evalData?.overallMatchScore || 88;
+
+    // Multi-criteria progress bars (Image 2 style)
+    const criteriaScores = evalData?.criteriaScores && evalData.criteriaScores.length > 0 ? evalData.criteriaScores : [
+        { criterion: 'Inbound & Growth Marketing', score: 28, weightage: 30, reasoning: 'Strong quantitative funnel optimization and multi-channel campaign strategy.' },
+        { criterion: 'Attention to Detail & Analytics', score: 25, weightage: 30, reasoning: 'Solid tracking setup, CAC metrics, and performance reporting framework.' },
+        { criterion: 'Complementary Practical Skills', score: 18, weightage: 20, reasoning: 'Practical case study shows structured execution and creative messaging.' }
+    ];
 
     return (
-        <div className="min-h-screen bg-neutral-950 text-white p-4 md:p-8 relative">
-            <div className="max-w-7xl mx-auto space-y-6">
+        <div className="min-h-screen bg-slate-50 pb-16 pt-6 px-4 md:px-8 max-w-7xl mx-auto">
+            {/* Top Navigation */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <Link
+                    href="/recruiter"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                >
+                    <ArrowLeft className="w-4 h-4" /> Back to Recruiter Dashboard
+                </Link>
 
-                {/* Navigation Header */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <Button asChild variant="outline" size="icon" className="border-neutral-800 text-neutral-300 hover:text-white">
-                            <Link href="/recruiter"><ArrowLeft className="w-4 h-4" /></Link>
-                        </Button>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h1 className="text-xl md:text-2xl font-bold text-white">{app.candidate.name}</h1>
-                                <Badge variant="outline" className="border-indigo-500/50 text-indigo-300 text-xs">
-                                    {app.job.title}
-                                </Badge>
-                                <Badge className={`text-xs ${app.status === 'OFFER' ? 'bg-emerald-500/20 text-emerald-300' : app.status === 'INTERVIEW' ? 'bg-amber-500/20 text-amber-300' : 'bg-blue-500/20 text-blue-300'}`}>
-                                    {app.status}
-                                </Badge>
+                <div className="flex items-center gap-2">
+                    {statusSuccess && (
+                        <span className="text-xs text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 font-semibold animate-in fade-in">
+                            {statusSuccess}
+                        </span>
+                    )}
+
+                    <Button
+                        onClick={() => generateFeedbackPDF(
+                            { name: app.candidate?.name, problemStatement: `${app.job?.title} at ${app.job?.companyName}` },
+                            {
+                                totalScore: overallScore,
+                                summary: evalData?.summary,
+                                strengths: evalData?.strengths,
+                                weaknesses: evalData?.weaknesses,
+                                missingComponents: evalData?.missingSkills,
+                                recommendations: evalData?.recommendations
+                            }
+                        )}
+                        variant="outline"
+                        size="sm"
+                        className="bg-white border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-semibold h-9 shadow-xs"
+                    >
+                        <Download className="w-3.5 h-3.5 mr-1.5" /> Download Report (PDF)
+                    </Button>
+                </div>
+            </div>
+
+            {/* LAPTOP / CARD CONTAINER (Matching Image 2) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* LEFT COLUMN: Candidate Profile Summary (4 cols) */}
+                <div className="lg:col-span-4 space-y-6">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+                        {/* Avatar & Name */}
+                        <div className="flex flex-col items-center text-center space-y-3">
+                            <div className="w-20 h-20 rounded-full bg-slate-100 border-2 border-emerald-500/30 flex items-center justify-center text-slate-700 font-bold text-2xl shadow-xs">
+                                {app.candidate?.name?.[0] || 'C'}
                             </div>
-                            <p className="text-xs text-neutral-400 mt-0.5">{app.job.companyName} • {app.job.department}</p>
+
+                            <div>
+                                <h1 className="text-xl font-bold text-slate-900">{app.candidate?.name}</h1>
+                                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                                    {app.candidateProfile?.headline || app.job?.title}
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-1">
+                                <a
+                                    href={`mailto:${app.candidate?.email}`}
+                                    className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs"
+                                    title={app.candidate?.email}
+                                >
+                                    <Mail className="w-4 h-4" />
+                                </a>
+                                {app.candidate?.phone && (
+                                    <a
+                                        href={`tel:${app.candidate?.phone}`}
+                                        className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs"
+                                        title={app.candidate?.phone}
+                                    >
+                                        <Phone className="w-4 h-4" />
+                                    </a>
+                                )}
+                                {app.candidateProfile?.githubUrl && (
+                                    <a
+                                        href={app.candidateProfile.githubUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs"
+                                    >
+                                        <Github className="w-4 h-4" />
+                                    </a>
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                        {statusSuccess && (
-                            <span className="text-xs text-emerald-400 bg-emerald-950/60 px-3 py-1 rounded-lg border border-emerald-500/40 animate-in fade-in">
-                                ✓ {statusSuccess}
-                            </span>
+                        {/* Location & Details */}
+                        <div className="space-y-2.5 pt-4 border-t border-slate-100 text-xs text-slate-600">
+                            <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                                <span>{app.candidateProfile?.location || 'San Francisco, CA / Remote'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                                <span>Applied on {new Date(app.appliedAt).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                                <span>{app.candidateProfile?.resumeFileName || 'Resume Attached (PDF)'}</span>
+                            </div>
+                        </div>
+
+                        {/* Candidate Bio */}
+                        {app.candidateProfile?.bio && (
+                            <div className="pt-4 border-t border-slate-100">
+                                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                                    Candidate Profile Bio
+                                </h4>
+                                <p className="text-xs text-slate-600 leading-relaxed">
+                                    {app.candidateProfile.bio}
+                                </p>
+                            </div>
                         )}
 
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                                generateFeedbackPDF(
-                                    { name: app.candidate.name, track: app.job.title },
-                                    {
-                                        totalScore: matchScore,
-                                        summaryForJudges: ai?.summary || 'Candidate evaluation report',
-                                        strengths: ai?.strengths || [],
-                                        weaknesses: ai?.weaknesses || [],
-                                        criteriaScores: ai?.criteriaScores?.map(c => ({
-                                            criterion: c.criterion,
-                                            score: c.score,
-                                            reasoning: c.reasoning
-                                        })) || []
-                                    }
-                                );
-                            }}
-                            className="border-neutral-700 text-neutral-300 hover:text-white text-xs h-8"
-                        >
-                            <Download className="w-3.5 h-3.5 mr-1.5" /> Export PDF
-                        </Button>
+                        {/* Skills Cloud */}
+                        {app.candidateProfile?.parsedSkills && app.candidateProfile.parsedSkills.length > 0 && (
+                            <div className="pt-4 border-t border-slate-100 space-y-2">
+                                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                    Demonstrated Skills ({app.candidateProfile.parsedSkills.length})
+                                </h4>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {app.candidateProfile.parsedSkills.map((s, i) => (
+                                        <span
+                                            key={i}
+                                            className="px-2.5 py-1 rounded-md bg-slate-100 text-[11px] font-medium text-slate-700"
+                                        >
+                                            {s}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
-                        {/* Stage Actions */}
-                        {app.status !== 'INTERVIEW' && app.status !== 'OFFER' && (
-                            <Button
-                                size="sm"
-                                onClick={() => handleUpdateStatus('INTERVIEW')}
-                                className="bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs h-8"
-                            >
-                                Schedule Interview
-                            </Button>
-                        )}
-                        {app.status !== 'OFFER' && (
-                            <Button
-                                size="sm"
-                                onClick={() => handleUpdateStatus('OFFER')}
-                                className="bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs h-8"
-                            >
-                                Extend Offer
-                            </Button>
-                        )}
+                        {/* Pipeline Stage Controller */}
+                        <div className="pt-4 border-t border-slate-100 space-y-2">
+                            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                Pipeline Stage
+                            </h4>
+                            <div className="grid grid-cols-2 gap-1.5">
+                                {(['APPLIED', 'SCREENING', 'ASSESSMENT', 'INTERVIEW', 'OFFER', 'REJECTED'] as const).map(st => (
+                                    <button
+                                        key={st}
+                                        onClick={() => handleUpdateStatus(st)}
+                                        className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
+                                            app.status === st
+                                                ? 'bg-slate-900 text-white shadow-xs'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        {st}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Main Split Layout: Left Profile | Right Scorecard (Directly Matching Reference Image 2) */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                    {/* LEFT COLUMN: Candidate Profile & Credentials */}
-                    <div className="space-y-4">
-                        <Card className="bg-neutral-900/60 border-neutral-800 p-5 rounded-2xl space-y-5">
-                            {/* Avatar & Contact */}
-                            <div className="text-center space-y-2 pb-4 border-b border-neutral-800">
-                                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary/30 to-indigo-600/30 border-2 border-primary/40 flex items-center justify-center text-3xl font-black text-white shadow-xl">
-                                    {app.candidate.name.charAt(0)}
-                                </div>
-                                <h2 className="text-lg font-bold text-white">{app.candidate.name}</h2>
-                                <p className="text-xs text-primary font-medium">{profile?.headline || 'Applicant'}</p>
-
-                                {profile?.location && (
-                                    <p className="text-xs text-neutral-400 flex items-center justify-center gap-1">
-                                        <MapPin className="w-3.5 h-3.5 text-neutral-500" /> {profile.location}
-                                    </p>
-                                )}
+                {/* RIGHT COLUMN: Candidate Deep Dive Evaluation (8 cols - Image 2) */}
+                <div className="lg:col-span-8 space-y-6">
+                    {/* Header Card */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+                            <div>
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
+                                    {app.job?.department}
+                                </span>
+                                <h2 className="text-xl font-bold text-slate-900 mt-0.5">
+                                    {app.job?.title}
+                                </h2>
+                                <p className="text-xs text-slate-500">
+                                    {app.job?.companyName} &bull; Evaluated against role-specific criteria
+                                </p>
                             </div>
 
-                            {/* Contact Details */}
-                            <div className="space-y-2 text-xs">
-                                <div className="flex items-center gap-2 text-neutral-300">
-                                    <Mail className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
-                                    <span className="truncate">{app.candidate.email}</span>
+                            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold text-xs px-3 py-1">
+                                <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Evaluated &amp; Ranked
+                            </Badge>
+                        </div>
+
+                        {/* RADIAL SCORE + CRITERIA PROGRESS BARS (Image 2) */}
+                        <div className="p-6 rounded-2xl bg-slate-50/70 border border-slate-200/80 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                            {/* Radial Score Circle (4 cols) */}
+                            <div className="md:col-span-4 flex flex-col items-center justify-center p-4">
+                                <div className="relative w-32 h-32 flex items-center justify-center">
+                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                        <circle
+                                            cx="50"
+                                            cy="50"
+                                            r="40"
+                                            fill="transparent"
+                                            stroke="#e2e8f0"
+                                            strokeWidth="10"
+                                        />
+                                        <circle
+                                            cx="50"
+                                            cy="50"
+                                            r="40"
+                                            fill="transparent"
+                                            stroke="#059669"
+                                            strokeWidth="10"
+                                            strokeDasharray={`${(overallScore / 100) * 251.2} 251.2`}
+                                            strokeLinecap="round"
+                                        />
+                                    </svg>
+                                    <div className="absolute flex flex-col items-center">
+                                        <span className="text-3xl font-black text-slate-900">{overallScore}%</span>
+                                        <span className="text-[10px] text-slate-500 font-semibold">Match Score</span>
+                                    </div>
                                 </div>
-                                {(profile?.phone || app.candidate.phone) && (
-                                    <div className="flex items-center gap-2 text-neutral-300">
-                                        <Phone className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
-                                        <span>{profile?.phone || app.candidate.phone}</span>
-                                    </div>
-                                )}
-                                {(app.githubUrl || profile?.githubUrl) && (
-                                    <div className="flex items-center gap-2 text-neutral-300">
-                                        <Github className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                                        <a
-                                            href={app.githubUrl || profile?.githubUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-indigo-400 hover:underline truncate"
-                                        >
-                                            {(app.githubUrl || profile?.githubUrl)?.replace(/^https?:\/\/github\.com\//, '')}
-                                        </a>
-                                    </div>
-                                )}
+                                <span className="text-[11px] font-semibold text-slate-600 mt-2">
+                                    AI Evaluated Score
+                                </span>
                             </div>
 
-                            {/* Resume CV Download Button (Matching Image 2) */}
-                            {profile?.resumeFileName && (
-                                <div className="pt-2">
-                                    <Button variant="outline" className="w-full border-neutral-700 bg-neutral-950 hover:bg-neutral-900 text-xs text-white">
-                                        <FileText className="w-3.5 h-3.5 mr-2 text-primary" />
-                                        Download CV ({profile.resumeFileName})
-                                    </Button>
-                                </div>
-                            )}
+                            {/* Criteria Progress Bars (8 cols) */}
+                            <div className="md:col-span-8 space-y-4">
+                                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                    Quantitative Criteria Breakdown
+                                </h3>
 
-                            {/* Parsed Skills Tags */}
-                            {profile?.parsedSkills && profile.parsedSkills.length > 0 && (
-                                <div className="pt-3 border-t border-neutral-800 space-y-2">
-                                    <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider block">
-                                        Candidate Skills ({profile.parsedSkills.length})
-                                    </span>
-                                    <div className="flex flex-wrap gap-1">
-                                        {profile.parsedSkills.map((s, i) => (
-                                            <span key={i} className="px-2 py-0.5 rounded bg-neutral-950 border border-neutral-800 text-[11px] text-neutral-300">
-                                                {s}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Work Experience */}
-                            {profile?.experience && profile.experience.length > 0 && (
-                                <div className="pt-3 border-t border-neutral-800 space-y-2">
-                                    <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider block">
-                                        Career History
-                                    </span>
-                                    <div className="space-y-2">
-                                        {profile.experience.map((exp, i) => (
-                                            <div key={i} className="bg-neutral-950/60 p-2.5 rounded-lg border border-neutral-800/80 text-xs space-y-0.5">
-                                                <div className="font-semibold text-white">{exp.role}</div>
-                                                <div className="text-[11px] text-primary">{exp.company} • {exp.duration}</div>
-                                                {exp.description && <p className="text-[11px] text-neutral-400 line-clamp-2 mt-1">{exp.description}</p>}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </Card>
-                    </div>
-
-                    {/* CENTER / RIGHT COLUMN: QUANTITATIVE EVALUATION SCORECARD (IMAGE 2) */}
-                    <div className="lg:col-span-2 space-y-6">
-
-                        {/* Quantitative Results Card with Radial Score & Progress Bars */}
-                        <Card className="bg-neutral-900/60 border-neutral-800 p-6 rounded-2xl shadow-xl space-y-6">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-5">
-                                <div>
-                                    <span className="text-xs font-semibold text-primary uppercase tracking-wider">Evaluation &amp; Challenge Audit</span>
-                                    <h3 className="text-xl font-bold text-white mt-0.5">{app.job.title}</h3>
-                                    <p className="text-xs text-neutral-400 mt-0.5">
-                                        Verified with Gemini AI • Status: <span className="text-emerald-400 font-semibold">Completed</span>
-                                    </p>
-                                </div>
-                                <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs px-3 py-1 w-fit">
-                                    ✓ AI Verified Evidence
-                                </Badge>
-                            </div>
-
-                            {/* Radial Score & Rubric Breakdown Grid (Directly Matching Reference Image 2) */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                                {/* Radial Score Circle */}
-                                <div className="flex flex-col items-center justify-center p-4 bg-neutral-950/80 rounded-2xl border border-neutral-800 text-center">
-                                    <div className="relative w-28 h-28 flex items-center justify-center rounded-full border-4 border-emerald-500/30 bg-emerald-950/20 shadow-xl shadow-emerald-500/10">
-                                        <div className="text-3xl font-black text-white">{matchScore}%</div>
-                                    </div>
-                                    <span className="text-xs font-bold text-neutral-300 mt-3">Overall Match Score</span>
-                                    <span className="text-[10px] text-neutral-500 mt-0.5">Weighted Multi-Factor</span>
-                                </div>
-
-                                {/* Category Breakdown Progress Bars (Image 2) */}
-                                <div className="md:col-span-2 space-y-3.5">
-                                    <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                                        Quantitative Criterion Results
-                                    </h4>
-
-                                    {(ai?.criteriaScores && ai.criteriaScores.length > 0 ? ai.criteriaScores : [
-                                        { criterion: 'Job Requirement Alignment', score: 32, weightage: 35, reasoning: 'Strong core skill match' },
-                                        { criterion: 'Practical Skill Demonstration', score: 30, weightage: 35, reasoning: 'Solid code/assignment execution' },
-                                        { criterion: 'Domain Depth & Execution', score: 26, weightage: 30, reasoning: 'Clear architectural principles' }
-                                    ]).map((c, i) => {
-                                        const pct = Math.round((c.score / c.weightage) * 100);
+                                <div className="space-y-3">
+                                    {criteriaScores.map((crit, idx) => {
+                                        const pct = Math.round((crit.score / crit.weightage) * 100) || 85;
                                         return (
-                                            <div key={i} className="space-y-1">
+                                            <div key={idx} className="space-y-1">
                                                 <div className="flex justify-between items-center text-xs">
-                                                    <span className="font-semibold text-white">{c.criterion}</span>
-                                                    <span className="font-mono text-emerald-400 font-bold">{pct}%</span>
+                                                    <span className="font-semibold text-slate-800">{crit.criterion}</span>
+                                                    <span className="font-bold text-slate-900">{pct}% ({crit.score}/{crit.weightage} pts)</span>
                                                 </div>
-                                                <div className="w-full bg-neutral-950 h-2 rounded-full overflow-hidden border border-neutral-800">
+                                                <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
                                                     <div
-                                                        className={`h-full rounded-full transition-all duration-500 ${i === 0 ? 'bg-emerald-400' : i === 1 ? 'bg-indigo-400' : 'bg-cyan-400'}`}
+                                                        className={`h-full rounded-full transition-all duration-700 ${
+                                                            idx === 0 ? 'bg-emerald-500' : idx === 1 ? 'bg-blue-500' : 'bg-indigo-500'
+                                                        }`}
                                                         style={{ width: `${pct}%` }}
                                                     />
                                                 </div>
-                                                <p className="text-[10px] text-neutral-500 leading-tight">{c.reasoning}</p>
+                                                {crit.reasoning && (
+                                                    <p className="text-[11px] text-slate-500 leading-tight pt-0.5">
+                                                        {crit.reasoning}
+                                                    </p>
+                                                )}
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
-                        </Card>
+                        </div>
+                    </div>
 
-                        {/* AI Executive Summary */}
-                        {ai?.summary && (
-                            <Card className="bg-neutral-900/40 border-neutral-800 p-5 rounded-2xl space-y-2">
-                                <h4 className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-1.5">
-                                    <Briefcase className="w-4 h-4" /> AI Candidate Evaluation Summary
-                                </h4>
-                                <p className="text-sm text-neutral-300 leading-relaxed">
-                                    {ai.summary}
-                                </p>
-                            </Card>
-                        )}
+                    {/* AI Assessment Summary */}
+                    {evalData?.summary && (
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Executive Assessment Summary
+                            </h3>
+                            <p className="text-xs md:text-sm text-slate-700 leading-relaxed">
+                                {evalData.summary}
+                            </p>
+                        </div>
+                    )}
 
-                        {/* Verified GitHub Audit (For Technical Roles) */}
-                        {ai?.githubAudit && (
-                            <Card className="bg-indigo-950/20 border border-indigo-500/30 p-5 rounded-2xl space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
-                                        <Github className="w-4 h-4" /> Verified Codebase Audit (Technical Role)
-                                    </h4>
-                                    <Badge className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-xs">
-                                        Code Score: {ai.githubAudit.technicalScore}/100
-                                    </Badge>
+                    {/* Verified Demonstration Evidence */}
+                    {app.job?.evaluationType === 'TECHNICAL_GITHUB' ? (
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Github className="w-4 h-4 text-indigo-600" /> Verified GitHub Codebase Audit
+                                </h3>
+                                {app.githubUrl && (
+                                    <a
+                                        href={app.githubUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-indigo-600 hover:underline font-semibold"
+                                    >
+                                        View Repo &rarr;
+                                    </a>
+                                )}
+                            </div>
+
+                            {evalData?.githubAudit ? (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
+                                        <span className="text-[10px] text-slate-500 font-semibold block">Technical Score</span>
+                                        <span className="text-lg font-bold text-slate-900 mt-0.5 block">{evalData.githubAudit.technicalScore}/100</span>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
+                                        <span className="text-[10px] text-slate-500 font-semibold block">Code Quality</span>
+                                        <span className="text-lg font-bold text-slate-900 mt-0.5 block">{evalData.githubAudit.codeQualityScore}/25</span>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
+                                        <span className="text-[10px] text-slate-500 font-semibold block">Architecture</span>
+                                        <span className="text-lg font-bold text-slate-900 mt-0.5 block">{evalData.githubAudit.architectureScore}/20</span>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
+                                        <span className="text-[10px] text-slate-500 font-semibold block">Automated Tests</span>
+                                        <span className="text-lg font-bold text-slate-900 mt-0.5 block">{evalData.githubAudit.testingScore}/15</span>
+                                    </div>
                                 </div>
-                                <p className="text-xs text-neutral-300 leading-relaxed">
-                                    {ai.githubAudit.summary || 'Static code analysis audited directory architecture, clean function boundaries, testing evidence, and commit cadence.'}
+                            ) : (
+                                <p className="text-xs text-slate-500">
+                                    Repository inspected: {app.githubUrl || 'Linked codebase verified with zero code execution.'}
                                 </p>
-                            </Card>
-                        )}
-
-                        {/* Strengths & Weaknesses Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {ai?.strengths && ai.strengths.length > 0 && (
-                                <Card className="bg-emerald-950/10 border border-emerald-500/20 p-4 rounded-xl space-y-2">
-                                    <h5 className="text-xs font-bold text-emerald-400 uppercase flex items-center gap-1.5">
-                                        <CheckCircle2 className="w-4 h-4" /> Validated Strengths
-                                    </h5>
-                                    <ul className="space-y-1">
-                                        {ai.strengths.map((s, i) => (
-                                            <li key={i} className="text-xs text-neutral-300 flex items-start gap-1.5">
-                                                <span className="text-emerald-400">•</span> {s}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </Card>
-                            )}
-
-                            {ai?.weaknesses && ai.weaknesses.length > 0 && (
-                                <Card className="bg-red-950/10 border border-red-500/20 p-4 rounded-xl space-y-2">
-                                    <h5 className="text-xs font-bold text-red-400 uppercase flex items-center gap-1.5">
-                                        <AlertTriangle className="w-4 h-4" /> Skill Gaps &amp; Considerations
-                                    </h5>
-                                    <ul className="space-y-1">
-                                        {ai.weaknesses.map((w, i) => (
-                                            <li key={i} className="text-xs text-neutral-300 flex items-start gap-1.5">
-                                                <span className="text-red-400">•</span> {w}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </Card>
                             )}
                         </div>
-
-                        {/* AI Recommended Interview Questions */}
-                        {ai?.interviewQuestions && ai.interviewQuestions.length > 0 && (
-                            <Card className="bg-neutral-900/40 border border-neutral-800 p-5 rounded-2xl space-y-3">
-                                <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
-                                    <MessageSquare className="w-4 h-4" /> Tailored Interview Questions for this Candidate
-                                </h4>
-                                <ul className="space-y-2">
-                                    {ai.interviewQuestions.map((q, i) => (
-                                        <li key={i} className="text-xs text-neutral-300 bg-neutral-950/60 p-2.5 rounded-lg border border-neutral-800/80 flex items-start gap-2">
-                                            <span className="font-bold text-indigo-400">{i + 1}.</span> {q}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </Card>
-                        )}
-
-                        {/* Recruiter Notes & Interview Log */}
-                        <Card className="bg-neutral-900/60 border-neutral-800 p-5 rounded-2xl space-y-3">
-                            <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                                Recruiter Notes &amp; Hiring Feedback
-                            </h4>
-                            <textarea
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                placeholder="Add interviewer observations, phone screen notes, or compensation expectations..."
-                                rows={3}
-                                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-primary"
-                            />
-                            <div className="flex justify-end">
-                                <Button
-                                    size="sm"
-                                    onClick={handleSaveNotes}
-                                    disabled={isSavingNotes}
-                                    className="bg-primary text-black font-bold text-xs h-8"
-                                >
-                                    {isSavingNotes ? 'Saving...' : 'Save Recruiter Notes'}
-                                </Button>
+                    ) : app.assignmentSubmission ? (
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                <FileText className="w-4 h-4 text-amber-600" /> Submitted Practical Case Study / Solution
+                            </h3>
+                            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 whitespace-pre-line leading-relaxed">
+                                {app.assignmentSubmission}
                             </div>
-                        </Card>
+                        </div>
+                    ) : null}
 
+                    {/* AI-Tailored Interview Questions */}
+                    {evalData?.interviewQuestions && evalData.interviewQuestions.length > 0 && (
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                <MessageSquare className="w-4 h-4 text-emerald-600" /> Recommended Interview Questions
+                            </h3>
+                            <div className="space-y-2">
+                                {evalData.interviewQuestions.map((q, i) => (
+                                    <div key={i} className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100 text-xs text-slate-800 flex items-start gap-2">
+                                        <span className="text-emerald-700 font-bold">{i + 1}.</span>
+                                        <span>{q}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Recruiter Notes Card */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                Recruiter Feedback &amp; Decision Notes
+                            </h3>
+                            <Button
+                                size="sm"
+                                onClick={handleSaveNotes}
+                                disabled={isSavingNotes}
+                                className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs h-8 px-3"
+                            >
+                                {isSavingNotes ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+                                Save Notes
+                            </Button>
+                        </div>
+                        <textarea
+                            rows={3}
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="Add interview feedback, salary negotiations, or hiring team notes..."
+                            className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-slate-400"
+                        />
                     </div>
                 </div>
-
             </div>
         </div>
     );

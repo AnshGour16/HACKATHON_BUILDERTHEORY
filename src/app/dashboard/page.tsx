@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-    Brain, Target, AlertTriangle, CheckCircle2,
-    Github, Loader2, Trophy, Users,
-    ExternalLink, Code2, GitBranch, ShieldCheck, Activity, Layers,
-    Crown, Sparkles, RefreshCw, Wrench, Briefcase, Building2,
-    MapPin, ChevronRight, FileText, ArrowRight
+    Brain, Target, CheckCircle2,
+    Github, Loader2, Trophy,
+    ExternalLink, ShieldCheck,
+    Crown, Sparkles, RefreshCw, Briefcase, Building2,
+    ArrowRight, AlertTriangle
 } from 'lucide-react';
 
 interface IApplicationItem {
@@ -137,7 +137,6 @@ export default function UnifiedDashboard() {
     const [team, setTeam] = useState<ITeamData | null>(null);
     const [submission, setSubmission] = useState<ISubmissionData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     // Code Submission & Re-evaluation State
     const [githubUrl, setGithubUrl] = useState('');
@@ -173,8 +172,7 @@ export default function UnifiedDashboard() {
                 }
             }
         } catch (e) {
-            console.error(e);
-            setError('Error loading dashboard');
+            console.error('Error loading dashboard:', e);
         } finally {
             setLoading(false);
         }
@@ -219,9 +217,9 @@ export default function UnifiedDashboard() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-neutral-950 flex flex-col justify-center items-center text-white gap-4">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-sm text-neutral-400">Loading your candidate intelligence dashboard...</p>
+            <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center text-slate-800 gap-4">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                <p className="text-xs text-slate-500 font-medium">Loading your candidate intelligence dashboard...</p>
             </div>
         );
     }
@@ -229,43 +227,42 @@ export default function UnifiedDashboard() {
     const gh = submission?.githubEvaluation;
     const isEvaluated = gh?.status === 'EVALUATED' || team?.githubStatus === 'EVALUATED';
     const currentScore = gh?.technicalScore ?? team?.githubScore;
-    const isCodePhaseOpen = team?.hackathon?.isCodeSubmissionOpen ?? true;
 
     // Default to Hackathon tab if user has team and 0 job applications
     const effectiveTab = applications.length === 0 && team ? 'HACKATHON' : activeTab;
 
     return (
-        <div className="min-h-screen p-4 md:p-8 relative max-w-7xl mx-auto">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-
+        <div className="min-h-screen bg-slate-50 p-4 md:p-8 max-w-7xl mx-auto text-slate-800">
             {/* Dashboard Subheader & Mode Switcher */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-white">Talent & Project Dashboard</h1>
-                    <p className="text-xs text-neutral-400 mt-1">
+                    <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+                        Talent &amp; Career Dashboard
+                    </h1>
+                    <p className="text-xs text-slate-500 mt-1">
                         Track your industry applications, AI matching scores, and technical repository reviews.
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2 bg-neutral-900/80 p-1 rounded-xl border border-neutral-800">
+                <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 shadow-xs">
                     <button
                         onClick={() => setActiveTab('CANDIDATE')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
                             effectiveTab === 'CANDIDATE'
-                                ? 'bg-primary text-black'
-                                : 'text-neutral-400 hover:text-white'
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'text-slate-600 hover:text-slate-900'
                         }`}
                     >
                         <Briefcase className="w-3.5 h-3.5" />
-                        My Job Applications ({applications.length})
+                        Job Applications ({applications.length})
                     </button>
                     {team && (
                         <button
                             onClick={() => setActiveTab('HACKATHON')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
                                 effectiveTab === 'HACKATHON'
-                                    ? 'bg-primary text-black'
-                                    : 'text-neutral-400 hover:text-white'
+                                    ? 'bg-slate-900 text-white shadow-xs'
+                                    : 'text-slate-600 hover:text-slate-900'
                             }`}
                         >
                             <Trophy className="w-3.5 h-3.5" />
@@ -280,55 +277,55 @@ export default function UnifiedDashboard() {
                 <div className="space-y-6">
                     {/* Top Metric Cards */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <Card className="bg-neutral-900/50 border-neutral-800 backdrop-blur-sm p-4">
-                            <span className="text-xs text-neutral-400 font-medium block">Total Applications</span>
-                            <span className="text-3xl font-black text-white mt-1 block">{applications.length}</span>
-                        </Card>
-                        <Card className="bg-neutral-900/50 border-neutral-800 backdrop-blur-sm p-4">
-                            <span className="text-xs text-indigo-400 font-medium block">Under AI Review</span>
-                            <span className="text-3xl font-black text-indigo-300 mt-1 block">
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                            <span className="text-xs text-slate-500 font-medium block">Total Applications</span>
+                            <span className="text-3xl font-extrabold text-slate-900 mt-1 block">{applications.length}</span>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                            <span className="text-xs text-blue-600 font-medium block">Under AI Review</span>
+                            <span className="text-3xl font-extrabold text-blue-700 mt-1 block">
                                 {applications.filter(a => a.status === 'APPLIED' || a.status === 'SCREENING').length}
                             </span>
-                        </Card>
-                        <Card className="bg-neutral-900/50 border-neutral-800 backdrop-blur-sm p-4">
-                            <span className="text-xs text-amber-400 font-medium block">Interviews Scheduled</span>
-                            <span className="text-3xl font-black text-amber-300 mt-1 block">
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                            <span className="text-xs text-amber-600 font-medium block">Interviews Scheduled</span>
+                            <span className="text-3xl font-extrabold text-amber-700 mt-1 block">
                                 {applications.filter(a => a.status === 'INTERVIEW' || a.status === 'ASSESSMENT').length}
                             </span>
-                        </Card>
-                        <Card className="bg-neutral-900/50 border-neutral-800 backdrop-blur-sm p-4">
-                            <span className="text-xs text-emerald-400 font-medium block">Offers Received</span>
-                            <span className="text-3xl font-black text-emerald-300 mt-1 block">
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                            <span className="text-xs text-emerald-600 font-medium block">Offers Received</span>
+                            <span className="text-3xl font-extrabold text-emerald-700 mt-1 block">
                                 {applications.filter(a => a.status === 'OFFER' || a.status === 'HIRED').length}
                             </span>
-                        </Card>
+                        </div>
                     </div>
 
                     {applications.length === 0 ? (
-                        <Card className="border-neutral-800 bg-neutral-900/30 p-12 text-center space-y-4">
-                            <Briefcase className="w-12 h-12 text-neutral-600 mx-auto" />
-                            <h3 className="text-lg font-bold text-white">No job applications submitted yet</h3>
-                            <p className="text-xs text-neutral-400 max-w-md mx-auto">
+                        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-4 shadow-xs">
+                            <Briefcase className="w-12 h-12 text-slate-300 mx-auto" />
+                            <h3 className="text-lg font-bold text-slate-900">No job applications submitted yet</h3>
+                            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
                                 Explore vacancies across Software, Sales, Marketing, Finance, HR, Operations, Support, and Design to demonstrate your skills.
                             </p>
                             <div className="flex justify-center gap-3 pt-2">
-                                <Button asChild className="bg-primary hover:bg-primary/90 text-black font-bold text-xs h-9">
+                                <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 shadow-xs">
                                     <Link href="/jobs">
                                         Browse Open Roles <ArrowRight className="w-3.5 h-3.5 ml-1" />
                                     </Link>
                                 </Button>
-                                <Button asChild variant="outline" className="border-neutral-700 text-xs h-9 text-neutral-300">
+                                <Button asChild variant="outline" className="border-slate-300 text-xs h-9 text-slate-700">
                                     <Link href="/candidate/profile">
-                                        Upload Resume & Build Profile
+                                        Upload Resume &amp; Build Profile
                                     </Link>
                                 </Button>
                             </div>
-                        </Card>
+                        </div>
                     ) : (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Applications List */}
                             <div className="lg:col-span-1 space-y-3">
-                                <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                                     Submitted Applications ({applications.length})
                                 </h3>
 
@@ -337,44 +334,44 @@ export default function UnifiedDashboard() {
                                         <div
                                             key={app._id}
                                             onClick={() => setSelectedApp(app)}
-                                            className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                                            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
                                                 selectedApp?._id === app._id
-                                                    ? 'bg-neutral-800/80 border-primary shadow-lg'
-                                                    : 'bg-neutral-900/50 border-neutral-800/80 hover:border-neutral-700'
+                                                    ? 'bg-white border-emerald-500 shadow-sm ring-1 ring-emerald-500'
+                                                    : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
                                             }`}
                                         >
                                             <div className="flex items-start justify-between gap-2 mb-1">
-                                                <h4 className="text-sm font-bold text-white line-clamp-1">
+                                                <h4 className="text-sm font-bold text-slate-900 line-clamp-1">
                                                     {app.job?.title || 'Applied Position'}
                                                 </h4>
                                                 {app.matchScore !== undefined && (
-                                                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                                                    <span className="text-xs font-black px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
                                                         {app.matchScore}%
                                                     </span>
                                                 )}
                                             </div>
 
-                                            <p className="text-xs text-neutral-400 flex items-center gap-1.5 mb-2">
-                                                <Building2 className="w-3.5 h-3.5 text-neutral-500" />
+                                            <p className="text-xs text-slate-500 flex items-center gap-1.5 mb-2 font-medium">
+                                                <Building2 className="w-3.5 h-3.5 text-slate-400" />
                                                 {app.job?.companyName || 'Hiring Company'}
                                             </p>
 
-                                            <div className="flex items-center justify-between text-[11px] pt-2 border-t border-neutral-800">
+                                            <div className="flex items-center justify-between text-[11px] pt-2 border-t border-slate-100">
                                                 <Badge
                                                     variant="outline"
-                                                    className={`text-[10px] ${
+                                                    className={`text-[10px] font-semibold ${
                                                         app.status === 'OFFER' || app.status === 'HIRED'
-                                                            ? 'border-emerald-500/40 text-emerald-400 bg-emerald-950/20'
+                                                            ? 'border-emerald-300 text-emerald-700 bg-emerald-50'
                                                             : app.status === 'INTERVIEW'
-                                                            ? 'border-indigo-500/40 text-indigo-300 bg-indigo-950/20'
+                                                            ? 'border-indigo-300 text-indigo-700 bg-indigo-50'
                                                             : app.status === 'REJECTED'
-                                                            ? 'border-red-500/40 text-red-400 bg-red-950/20'
-                                                            : 'border-neutral-700 text-neutral-300'
+                                                            ? 'border-red-300 text-red-700 bg-red-50'
+                                                            : 'border-slate-200 text-slate-700 bg-slate-50'
                                                     }`}
                                                 >
                                                     {app.status}
                                                 </Badge>
-                                                <span className="text-neutral-500">
+                                                <span className="text-slate-400 font-medium">
                                                     {new Date(app.appliedAt).toLocaleDateString()}
                                                 </span>
                                             </div>
@@ -386,29 +383,29 @@ export default function UnifiedDashboard() {
                             {/* Deep Dive Scorecard Preview */}
                             <div className="lg:col-span-2">
                                 {selectedApp ? (
-                                    <Card className="bg-neutral-900/60 border-neutral-800 backdrop-blur-md p-6 space-y-6">
-                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-neutral-800 pb-5">
+                                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-5">
                                             <div>
-                                                <div className="flex items-center gap-2 mb-1.5">
-                                                    <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
                                                         {selectedApp.job?.department}
                                                     </span>
-                                                    <Badge variant="outline" className="border-neutral-700 text-neutral-300 text-[10px]">
+                                                    <Badge variant="outline" className="border-slate-200 text-slate-600 text-[10px]">
                                                         {selectedApp.job?.location}
                                                     </Badge>
                                                 </div>
-                                                <h2 className="text-2xl font-extrabold text-white">
+                                                <h2 className="text-xl md:text-2xl font-bold text-slate-900">
                                                     {selectedApp.job?.title}
                                                 </h2>
-                                                <p className="text-xs text-neutral-400 mt-0.5">
-                                                    {selectedApp.job?.companyName} • Applied on {new Date(selectedApp.appliedAt).toLocaleDateString()}
+                                                <p className="text-xs text-slate-500 mt-0.5">
+                                                    {selectedApp.job?.companyName} &bull; Applied on {new Date(selectedApp.appliedAt).toLocaleDateString()}
                                                 </p>
                                             </div>
 
                                             {selectedApp.matchScore !== undefined && (
-                                                <div className="flex flex-col items-center bg-emerald-950/30 border border-emerald-500/40 px-5 py-3 rounded-xl shrink-0">
-                                                    <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">AI Match Score</span>
-                                                    <span className="text-3xl font-black text-white mt-0.5">
+                                                <div className="flex flex-col items-center bg-emerald-50 border border-emerald-200 px-5 py-3 rounded-xl shrink-0">
+                                                    <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">AI Match Score</span>
+                                                    <span className="text-3xl font-black text-emerald-700 mt-0.5">
                                                         {selectedApp.matchScore}%
                                                     </span>
                                                 </div>
@@ -416,23 +413,23 @@ export default function UnifiedDashboard() {
                                         </div>
 
                                         {/* Status Roadmap */}
-                                        <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 space-y-2">
+                                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                                             <div className="flex justify-between items-center text-xs">
-                                                <span className="text-neutral-400">Current Pipeline Stage:</span>
-                                                <strong className="text-primary uppercase tracking-wider font-bold">
+                                                <span className="text-slate-600 font-medium">Current Pipeline Stage:</span>
+                                                <strong className="text-slate-900 uppercase tracking-wider font-extrabold">
                                                     {selectedApp.status}
                                                 </strong>
                                             </div>
-                                            <div className="w-full bg-neutral-900 h-2 rounded-full overflow-hidden flex">
+                                            <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden flex">
                                                 <div
-                                                    className="bg-primary h-full transition-all duration-500"
+                                                    className="bg-emerald-600 h-full transition-all duration-500 rounded-full"
                                                     style={{
                                                         width:
                                                             selectedApp.status === 'APPLIED' ? '20%' :
                                                             selectedApp.status === 'SCREENING' ? '40%' :
                                                             selectedApp.status === 'ASSESSMENT' ? '60%' :
                                                             selectedApp.status === 'INTERVIEW' ? '80%' :
-                                                            selectedApp.status === 'OFFER' || selectedApp.status === 'HIRED' ? '100%' : '10%'
+                                                            selectedApp.status === 'OFFER' || selectedApp.status === 'HIRED' ? '100%' : '15%'
                                                     }}
                                                 />
                                             </div>
@@ -441,18 +438,18 @@ export default function UnifiedDashboard() {
                                         {/* AI Criteria Breakdown */}
                                         {selectedApp.aiEvaluation?.criteriaScores && selectedApp.aiEvaluation.criteriaScores.length > 0 && (
                                             <div>
-                                                <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                                                    <Target className="w-4 h-4 text-primary" /> Evaluation Criteria Breakdown
+                                                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                    <Target className="w-4 h-4 text-emerald-600" /> Evaluation Criteria Breakdown
                                                 </h4>
                                                 <div className="space-y-2">
                                                     {selectedApp.aiEvaluation.criteriaScores.map((crit, i) => (
-                                                        <div key={i} className="p-3 rounded-lg bg-neutral-950 border border-neutral-800 text-xs">
+                                                        <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
                                                             <div className="flex justify-between items-center mb-1">
-                                                                <span className="font-semibold text-white">{crit.name}</span>
-                                                                <span className="font-bold text-primary">{crit.score} / {crit.maxScore} pts</span>
+                                                                <span className="font-semibold text-slate-800">{crit.name}</span>
+                                                                <span className="font-bold text-emerald-700">{crit.score} / {crit.maxScore} pts</span>
                                                             </div>
                                                             {crit.rationale && (
-                                                                <p className="text-[11px] text-neutral-400">{crit.rationale}</p>
+                                                                <p className="text-[11px] text-slate-500 leading-tight">{crit.rationale}</p>
                                                             )}
                                                         </div>
                                                     ))}
@@ -462,11 +459,11 @@ export default function UnifiedDashboard() {
 
                                         {/* Summary */}
                                         {selectedApp.aiEvaluation?.summary && (
-                                            <div className="p-4 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs space-y-1">
-                                                <h4 className="font-bold text-indigo-300 uppercase flex items-center gap-1.5">
-                                                    <Brain className="w-3.5 h-3.5" /> AI Candidate Assessment
+                                            <div className="p-4 rounded-xl bg-indigo-50/60 border border-indigo-100 text-xs space-y-1">
+                                                <h4 className="font-bold text-indigo-900 uppercase flex items-center gap-1.5">
+                                                    <Brain className="w-3.5 h-3.5 text-indigo-600" /> AI Candidate Assessment
                                                 </h4>
-                                                <p className="text-neutral-300 leading-relaxed">
+                                                <p className="text-slate-700 leading-relaxed">
                                                     {selectedApp.aiEvaluation.summary}
                                                 </p>
                                             </div>
@@ -475,14 +472,14 @@ export default function UnifiedDashboard() {
                                         {/* Strengths & Recommendations */}
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             {selectedApp.aiEvaluation?.strengths && selectedApp.aiEvaluation.strengths.length > 0 && (
-                                                <div className="p-4 rounded-xl bg-emerald-950/10 border border-emerald-500/20 space-y-2">
-                                                    <h5 className="text-xs font-bold text-emerald-400 uppercase flex items-center gap-1.5">
-                                                        <CheckCircle2 className="w-3.5 h-3.5" /> Key Strengths
+                                                <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-2">
+                                                    <h5 className="text-xs font-bold text-emerald-800 uppercase flex items-center gap-1.5">
+                                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Key Strengths
                                                     </h5>
-                                                    <ul className="space-y-1 text-xs text-neutral-300">
+                                                    <ul className="space-y-1 text-xs text-slate-700">
                                                         {selectedApp.aiEvaluation.strengths.map((str, i) => (
                                                             <li key={i} className="flex items-start gap-1.5">
-                                                                <span className="text-emerald-400">•</span> {str}
+                                                                <span className="text-emerald-600 font-bold">•</span> {str}
                                                             </li>
                                                         ))}
                                                     </ul>
@@ -490,23 +487,23 @@ export default function UnifiedDashboard() {
                                             )}
 
                                             {selectedApp.aiEvaluation?.weaknesses && selectedApp.aiEvaluation.weaknesses.length > 0 && (
-                                                <div className="p-4 rounded-xl bg-amber-950/10 border border-amber-500/20 space-y-2">
-                                                    <h5 className="text-xs font-bold text-amber-400 uppercase flex items-center gap-1.5">
-                                                        <Sparkles className="w-3.5 h-3.5" /> Growth Recommendations
+                                                <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200 space-y-2">
+                                                    <h5 className="text-xs font-bold text-amber-800 uppercase flex items-center gap-1.5">
+                                                        <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Growth Recommendations
                                                     </h5>
-                                                    <ul className="space-y-1 text-xs text-neutral-300">
+                                                    <ul className="space-y-1 text-xs text-slate-700">
                                                         {selectedApp.aiEvaluation.weaknesses.map((w, i) => (
                                                             <li key={i} className="flex items-start gap-1.5">
-                                                                <span className="text-amber-400">→</span> {w}
+                                                                <span className="text-amber-600 font-bold">&rarr;</span> {w}
                                                             </li>
                                                         ))}
                                                     </ul>
                                                 </div>
                                             )}
                                         </div>
-                                    </Card>
+                                    </div>
                                 ) : (
-                                    <div className="h-full flex items-center justify-center p-8 bg-neutral-900/30 rounded-2xl border border-neutral-800 text-neutral-500 text-xs">
+                                    <div className="h-full flex items-center justify-center p-8 bg-white rounded-2xl border border-slate-200 text-slate-400 text-xs">
                                         Select an application to view detailed AI scorecard.
                                     </div>
                                 )}
@@ -516,44 +513,44 @@ export default function UnifiedDashboard() {
                 </div>
             ) : null}
 
-            {/* HACKATHON VIEW: PRESERVED FULL WORKING IMPLEMENTATION */}
+            {/* HACKATHON VIEW: PRESERVED FULL WORKING IMPLEMENTATION IN CLASSIC LIGHT THEME */}
             {effectiveTab === 'HACKATHON' && team ? (
-                <div className="space-y-8">
+                <div className="space-y-6">
                     {/* Team Header Profile */}
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-neutral-900/60 p-6 rounded-2xl border border-neutral-800 backdrop-blur-md">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
                         <div>
                             <div className="flex flex-wrap items-center gap-2 mb-2">
-                                <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                                <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
                                     {team.hackathon?.name || 'Hackathon Project'}
                                 </span>
-                                <Badge variant="outline" className="border-indigo-500/50 text-indigo-300">
+                                <Badge variant="outline" className="border-indigo-200 text-indigo-700 bg-indigo-50 text-[10px] font-semibold">
                                     {team.track} Track
                                 </Badge>
                                 {isEvaluated ? (
-                                    <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                                        <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Codebase Evaluated & Ranked
+                                    <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-300 text-[10px] font-semibold">
+                                        <ShieldCheck className="w-3 h-3 mr-1" /> Codebase Evaluated &amp; Ranked
                                     </Badge>
                                 ) : (
-                                    <Badge variant="outline" className="border-primary/30 text-primary">
-                                        <Github className="w-3.5 h-3.5 mr-1" /> Awaiting Code Submission
+                                    <Badge variant="outline" className="border-slate-200 text-slate-600 text-[10px]">
+                                        <Github className="w-3 h-3 mr-1" /> Awaiting Code Submission
                                     </Badge>
                                 )}
                             </div>
-                            <h2 className="text-3xl font-extrabold text-white">{team.name}</h2>
+                            <h2 className="text-2xl font-bold text-slate-900">{team.name}</h2>
                             {team.projectTitle && (
-                                <p className="text-primary font-medium text-sm mt-0.5">{team.projectTitle}</p>
+                                <p className="text-emerald-700 font-semibold text-xs mt-0.5">{team.projectTitle}</p>
                             )}
-                            <p className="text-neutral-400 text-sm mt-2 max-w-2xl">{team.problemStatement}</p>
+                            <p className="text-slate-600 text-xs mt-2 max-w-2xl leading-relaxed">{team.problemStatement}</p>
                         </div>
 
                         {typeof currentScore === 'number' && (
-                            <div className="flex flex-col items-center bg-indigo-500/10 border border-indigo-500/30 px-6 py-4 rounded-xl">
-                                <span className="text-xs text-indigo-300 font-semibold uppercase tracking-wider flex items-center gap-1">
-                                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> Repository Score
+                            <div className="flex flex-col items-center bg-emerald-50 border border-emerald-200 px-6 py-4 rounded-xl shrink-0">
+                                <span className="text-xs text-emerald-800 font-bold uppercase tracking-wider flex items-center gap-1">
+                                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Repository Score
                                 </span>
-                                <span className="text-4xl font-extrabold text-white mt-1">
+                                <span className="text-4xl font-black text-slate-900 mt-1">
                                     {currentScore}
-                                    <span className="text-xs text-neutral-500 font-normal"> / 100</span>
+                                    <span className="text-xs text-slate-400 font-normal"> / 100</span>
                                 </span>
                             </div>
                         )}
@@ -561,26 +558,26 @@ export default function UnifiedDashboard() {
 
                     {/* Repository Evaluation Card */}
                     {isEvaluated && gh && !showEditRepo ? (
-                        <Card className="border-indigo-500/30 bg-neutral-900/50 backdrop-blur-md shadow-xl space-y-6 p-6">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-neutral-800 pb-5">
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-5">
                                 <div>
                                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-semibold">
-                                            <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Codebase Evaluated & Verified
+                                        <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-semibold">
+                                            <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Codebase Evaluated &amp; Verified
                                         </Badge>
                                         {gh.primaryLanguage && (
-                                            <Badge variant="outline" className="border-neutral-700 text-neutral-300 text-xs">
+                                            <Badge variant="outline" className="border-slate-200 text-slate-600 text-xs">
                                                 {gh.primaryLanguage}
                                             </Badge>
                                         )}
                                     </div>
-                                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                                        <Github className="w-5 h-5 text-indigo-400" />
+                                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                        <Github className="w-5 h-5 text-indigo-600" />
                                         <a
                                             href={gh.repoUrl || team.githubUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="hover:text-indigo-400 hover:underline flex items-center gap-1.5"
+                                            className="hover:text-indigo-600 hover:underline flex items-center gap-1.5"
                                         >
                                             {gh.repoOwner ? `${gh.repoOwner}/${gh.repoName}` : (team.githubUrl || 'Linked Repository')}
                                             <ExternalLink className="w-4 h-4 opacity-70" />
@@ -588,12 +585,12 @@ export default function UnifiedDashboard() {
                                     </h3>
                                 </div>
 
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
                                     <Button
                                         variant="outline"
                                         size="sm"
                                         onClick={() => setShowEditRepo(true)}
-                                        className="border-neutral-800 text-neutral-400 hover:text-white text-xs"
+                                        className="border-slate-300 text-slate-700 hover:bg-slate-100 text-xs h-8"
                                     >
                                         Update Repo
                                     </Button>
@@ -601,7 +598,7 @@ export default function UnifiedDashboard() {
                                         size="sm"
                                         onClick={() => handleCodeSubmit(undefined, true)}
                                         disabled={isSubmittingCode}
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-8"
                                     >
                                         {isSubmittingCode ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
                                         Re-Evaluate
@@ -612,33 +609,33 @@ export default function UnifiedDashboard() {
                             {/* Rubric Breakdown */}
                             {gh.breakdown && (
                                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                    <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
-                                        <span className="text-[11px] text-neutral-400 block truncate">Code Quality</span>
-                                        <span className="text-lg font-bold text-white mt-0.5 block">
+                                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center">
+                                        <span className="text-[11px] text-slate-500 font-semibold block truncate">Code Quality</span>
+                                        <span className="text-lg font-bold text-slate-900 mt-0.5 block">
                                             {gh.breakdown.codeQualityMaintainability ?? gh.breakdown.codeQuality} / 25
                                         </span>
                                     </div>
-                                    <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
-                                        <span className="text-[11px] text-neutral-400 block truncate">Implementation</span>
-                                        <span className="text-lg font-bold text-white mt-0.5 block">
+                                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center">
+                                        <span className="text-[11px] text-slate-500 font-semibold block truncate">Implementation</span>
+                                        <span className="text-lg font-bold text-slate-900 mt-0.5 block">
                                             {gh.breakdown.technicalImplementation} / 25
                                         </span>
                                     </div>
-                                    <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
-                                        <span className="text-[11px] text-neutral-400 block truncate">Architecture</span>
-                                        <span className="text-lg font-bold text-white mt-0.5 block">
+                                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center">
+                                        <span className="text-[11px] text-slate-500 font-semibold block truncate">Architecture</span>
+                                        <span className="text-lg font-bold text-slate-900 mt-0.5 block">
                                             {gh.breakdown.architectureProjectStructure ?? gh.breakdown.architecture} / 20
                                         </span>
                                     </div>
-                                    <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
-                                        <span className="text-[11px] text-neutral-400 block truncate">Testing</span>
-                                        <span className="text-lg font-bold text-white mt-0.5 block">
+                                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center">
+                                        <span className="text-[11px] text-slate-500 font-semibold block truncate">Testing</span>
+                                        <span className="text-lg font-bold text-slate-900 mt-0.5 block">
                                             {gh.breakdown.testingErrorHandling ?? gh.breakdown.documentationAndTesting} / 15
                                         </span>
                                     </div>
-                                    <div className="bg-neutral-950/60 border border-neutral-800/80 p-3 rounded-lg text-center">
-                                        <span className="text-[11px] text-neutral-400 block truncate">Docs & Git</span>
-                                        <span className="text-lg font-bold text-white mt-0.5 block">
+                                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center">
+                                        <span className="text-[11px] text-slate-500 font-semibold block truncate">Docs &amp; Git</span>
+                                        <span className="text-lg font-bold text-slate-900 mt-0.5 block">
                                             {gh.breakdown.documentationDevPractices ?? gh.breakdown.developmentActivity} / 15
                                         </span>
                                     </div>
@@ -646,19 +643,19 @@ export default function UnifiedDashboard() {
                             )}
 
                             {gh.summary && (
-                                <div className="bg-neutral-950/50 border border-neutral-800/80 p-4 rounded-xl text-xs text-neutral-300 leading-relaxed">
-                                    <strong className="text-indigo-400 block mb-1">Assessment Summary:</strong>
+                                <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs text-slate-700 leading-relaxed">
+                                    <strong className="text-slate-900 block mb-1">Assessment Summary:</strong>
                                     {gh.summary}
                                 </div>
                             )}
-                        </Card>
+                        </div>
                     ) : (
-                        <Card className="border-indigo-500/40 bg-neutral-900/60 backdrop-blur-md shadow-xl p-6">
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
                             <form onSubmit={(e) => handleCodeSubmit(e, false)} className="space-y-4">
-                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <Github className="w-5 h-5 text-primary" /> Submit Public GitHub Repository
+                                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                                    <Github className="w-5 h-5 text-indigo-600" /> Submit Public GitHub Repository
                                 </h3>
-                                <p className="text-xs text-neutral-400">
+                                <p className="text-xs text-slate-500">
                                     Submit your repository URL. Gemini AI will evaluate code quality, structure, testing, and git practices against the 100-point rubric.
                                 </p>
                                 <div className="flex flex-col sm:flex-row gap-3">
@@ -668,18 +665,18 @@ export default function UnifiedDashboard() {
                                         placeholder="https://github.com/organization/project"
                                         value={githubUrl}
                                         onChange={(e) => setGithubUrl(e.target.value)}
-                                        className="bg-neutral-950 border-neutral-700 flex-1 text-white text-xs h-10"
+                                        className="bg-slate-50 border-slate-200 flex-1 text-slate-900 text-xs h-10 focus:bg-white"
                                     />
                                     <Button
                                         type="submit"
                                         disabled={isSubmittingCode || !githubUrl.trim()}
-                                        className="bg-primary hover:bg-primary/90 text-black font-bold text-xs h-10 px-5"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-10 px-5 shadow-xs"
                                     >
                                         {isSubmittingCode ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : 'Run AI Code Audit'}
                                     </Button>
                                 </div>
                             </form>
-                        </Card>
+                        </div>
                     )}
                 </div>
             ) : null}
