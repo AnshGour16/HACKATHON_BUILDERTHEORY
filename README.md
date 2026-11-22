@@ -1,287 +1,215 @@
 <div align="center">
 
-# 🚀 RepoRanker AI
-### AI-Powered GitHub Repository Checker, Code Quality Auditor & Technical Ranking Platform
+# HireSphere AI
+### Full-Stack Talent Intelligence, AI Code Auditor, Cross-Platform Flutter Client & Serverpod Cloud Backend
 
+[![Live Web App](https://img.shields.io/badge/Live%20Web%20App-Vercel-black?style=for-the-badge&logo=vercel)](https://hackathon-ats.vercel.app)
+[![Serverpod Cloud](https://img.shields.io/badge/Serverpod%20Cloud-Live%20200%20OK-02569B?style=for-the-badge&logo=dart)](https://hiresphere-ai.api.serverpod.space)
+[![Flutter](https://img.shields.io/badge/Flutter-3.29%20Client-02569B?style=for-the-badge&logo=flutter)](https://flutter.dev)
 [![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Google Gemini](https://img.shields.io/badge/Google%20Gemini-2.5%20Flash-orange?style=for-the-badge&logo=googlegemini)](https://ai.google.dev/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
+[![MongoDB Atlas](https://img.shields.io/badge/MongoDB-Atlas-green?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/)
 
 <br/>
 
-**Transforming hackathon code review from hours of manual fatigue into seconds of algorithmic, objective, bias-free, and deep technical evaluation.**
+**Transforming candidate code audits and technical hiring from hours of manual fatigue into seconds of algorithmic, objective, bias-free evaluation.**
 
-[📖 Overview](#-the-problem-we-are-solving) • [✨ Key Features](#-key-features) • [🏗️ Architecture](#-architecture--workflow) • [📊 100-Point Rubric](#-100-point-technical-evaluation-rubric) • [🛠️ Tech Stack](#️-technology-stack)
+[Live Web App](https://hackathon-ats.vercel.app) • [Serverpod API](https://hiresphere-ai.api.serverpod.space) • [GitHub Repository](https://github.com/AnshGour16/HACKATHON_BUILDERTHEORY) • [Features](#-key-features) • [Architecture](#-project-architecture) • [Quickstart](#-quickstart)
 
 </div>
 
 ---
 
-## 📌 The Problem We Are Solving
+## 📌 Live Deployment & Verified Submission Links
 
-Hackathon judges receive dozens or hundreds of GitHub repositories from participants. Manually reviewing every repository, understanding its architecture, auditing code hygiene, checking test suites, and comparing technical depth across teams takes immense time and often leads to subjective, rushed evaluations.
-
-**RepoRanker AI transforms this end-to-end**:
-1. Participants submit their public GitHub repository URL.
-2. The platform safely inspects repository structure, dependency manifests, source files, automated test suites, and authentic git commit cadence.
-3. Google Gemini 2.5 Flash performs an objective technical audit against a strict **100-point structured rubric**.
-4. The system produces an overall score out of 100, comprehensive criterion breakdowns, strengths, weaknesses, and concrete recommendations.
-5. All evaluated repositories are automatically and deterministically ranked on a live server-side leaderboard for judges and organizers.
-
----
-
-## 🔄 The Evaluation & Ranking Workflow
-
-```
-   Participant Submits                    Automated Inspection & Audit                  Live Ranked Leaderboard
-┌─────────────────────────┐             ┌────────────────────────────────┐            ┌────────────────────────────────┐
-│  Team Leader Enters:    │             │  GitHub REST API Scraper       │            │  Deterministic Server Ranking  │
-│  • Public GitHub Repo   │ ──────────> │  • README & Architecture Tree  │ ─────────> │  • Rank 1 = Highest Score      │
-│  • Track / Domain Info  │             │  • Dependencies & Test Files   │            │  • Rubric Breakdown Badges     │
-│  • Verified Server-Side │             │  • Genuine Commit History      │            │  • Clickable Repository Links  │
-└─────────────────────────┘             └───────────────┬────────────────┘            └───────────────┬────────────────┘
-                                                        │                                             │
-                                                        ▼ Gemini 2.5 Flash Audit                      ▼ Organizer Decision Support
-                                        ┌────────────────────────────────┐            ┌────────────────────────────────┐
-                                        │  100-Point Technical Rubric    │            │  Judge Scorecard & Reports     │
-                                        │  • Code Quality (25 pts)       │            │  • Deep Architectural Analysis │
-                                        │  • Implementation Depth (25)   │            │  • Security Observations       │
-                                        │  • System Architecture (20)    │            │  • Testing Observations        │
-                                        │  • Testing & Errors (15)       │            │  • Manual Winner Selection     │
-                                        │  • Docs & Development (15)     │            │  • One-Click CSV Export        │
-                                        └────────────────────────────────┘            └────────────────────────────────┘
-```
+| Component | Target URL / Path | Status |
+|---|---|---|
+| **Live Web Application (Vercel)** | [https://hackathon-ats.vercel.app](https://hackathon-ats.vercel.app) | Active & Online |
+| **Serverpod Cloud Backend (API)** | [https://hiresphere-ai.api.serverpod.space](https://hiresphere-ai.api.serverpod.space) | Verified Live (HTTP 200 OK) |
+| **Serverpod Cloud Web Host** | [https://hiresphere-ai.serverpod.space](https://hiresphere-ai.serverpod.space) | Active & Online |
+| **GitHub Primary Repository** | [https://github.com/AnshGour16/HACKATHON_BUILDERTHEORY](https://github.com/AnshGour16/HACKATHON_BUILDERTHEORY) | Main Branch Synced |
+| **Flutter Mobile App Directory** | [`flutter_app/`](file:///flutter_app) | Material 3 & Inter Design System |
+| **Serverpod Server Directory** | [`hiresphere_server/`](file:///hiresphere_server) | Serverpod 2.9 & `scloud.yaml` |
 
 ---
 
-## 📊 100-Point Technical Evaluation Rubric
+## 🏗️ Project Architecture
 
-| Evaluation Criteria | Weight | Focus Areas |
-|---|---:|---|
-| **Code Quality and Maintainability** | 25 | Readability, naming conventions, separation of concerns, clean interfaces, error management. |
-| **Technical Implementation** | 25 | Non-trivial engineering logic, API/database integrations, framework depth, real logic vs boilerplate templates. |
-| **Architecture and Project Structure** | 20 | Directory organization, modularity, state management, decoupling of frontend/backend/services. |
-| **Testing and Error Handling** | 15 | Automated unit/integration test presence, test coverage, robust error boundaries, graceful fallbacks. |
-| **Documentation and Development Practices** | 15 | Setup instructions, prerequisites, environment configuration guidance, meaningful commit cadence. |
-| **Total** | **100** | **Normalized Technical Score** |
+```
+AI-SAAS /
+├── flutter_app/                # Flutter Cross-Platform Client (Web, Android, iOS)
+│   ├── lib/
+│   │   ├── models/             # Candidate & Job entities
+│   │   ├── screens/            # Dashboard, Candidate Details, Jobs, Copilot
+│   │   ├── services/           # ApiService connecting to Serverpod Cloud
+│   │   ├── widgets/            # Metric Cards, Radial Painters, Candidate Cards
+│   │   └── main.dart           # Flutter Material 3 entrypoint with Inter typography
+│   └── pubspec.yaml
+│
+├── hiresphere_server/          # Serverpod Backend Server (Dart Cloud Native)
+│   ├── bin/
+│   │   └── main.dart           # Production server entrypoint
+│   ├── config/                 # development.yaml, production.yaml & passwords.yaml
+│   ├── lib/
+│   │   ├── src/endpoints/      # CandidateEndpoint & JobEndpoint
+│   │   └── server.dart         # Serverpod Protocol & Server Lifecycle
+│   ├── scloud.yaml             # Serverpod Cloud Deployment Specification
+│   ├── Dockerfile              # Containerized build for Serverpod Cloud
+│   └── pubspec.yaml
+│
+├── hiresphere_client/          # Generated Serverpod Client SDK Package
+│
+└── src/                        # Next.js 16 Web Dashboard & Recruiter Portal
+    ├── app/
+    │   ├── admin/              # Leaderboard, Hackathons, Submission Audits
+    │   ├── recruiter/          # Recruiter Pipeline & AI Job Creation
+    │   ├── candidate/          # Profile, Resume & Application Tracker
+    │   ├── jobs/               # Career Portal & Role Listings
+    │   └── api/                # API Routes (Gemini Evaluation, Auth, Submissions)
+    ├── components/             # High-contrast Light SaaS UI Components
+    ├── lib/                    # Gemini 2.5 Flash, MongoDB, GitHub Scraper, Auth
+    └── models/                 # Mongoose Data Schemas (Submission, Team, Hackathon)
+```
 
 ---
 
 ## ✨ Key Features
 
 ### 1. 🐙 Automated Repository Scraping & Code Audit
-- Validates GitHub URLs server-side with strict anti-SSRF protection.
-- Scrapes repository metadata, README documentation, dependency manifests (`package.json`, `requirements.txt`, etc.), directory hierarchy, and key source code samples.
-- Gathers authentic git commit history to verify iterative development cadence during the hackathon.
-- Never executes participant-submitted code.
+* Server-side GitHub repository inspection with anti-SSRF protections.
+* Parses dependency manifests (`package.json`, `pubspec.yaml`, `requirements.txt`), architecture trees, test suites, and authentic git commit cadence.
+* Safe and non-intrusive: never executes participant-submitted code.
 
 ### 2. 🤖 Objective AI Technical Review with Gemini 2.5 Flash
-- Evaluates code against verifiable source-code evidence rather than marketing claims in README files.
-- Resilient against prompt injection: ignores instructions embedded within repository files attempting to alter evaluation scoring.
-- Outputs structured JSON with:
-  - Overall technical score out of 100.
-  - Criterion breakdown scores and specific feedback.
-  - Verified technical strengths and weaknesses.
-  - Missing or incomplete implementation evidence.
-  - Code quality, architecture, testing, and security observations.
-  - Actionable improvement recommendations and limitations of analysis.
+* Analyzes verifiable source code evidence rather than promotional README claims.
+* Hardened against prompt injection to prevent tampering with evaluations.
+* Generates structured evaluations across a strict **100-Point Rubric**:
+  - Code Quality and Maintainability (25 pts)
+  - Technical Implementation Depth (25 pts)
+  - System Architecture & Modularity (20 pts)
+  - Automated Testing & Error Boundaries (15 pts)
+  - Documentation & Git Cadence (15 pts)
 
-### 3. ⚖️ Deterministic Server-Side Ranking Engine
-- Highest score receives **Rank 1**.
-- Discrete integer-cent precision (`Math.round(score * 100)`) guarantees comparator transitivity and total ordering.
-- Multi-stage deterministic tie-breaker:
-  1. Primary GitHub Technical Score (descending)
-  2. Pitch score if available (descending)
-  3. Submission timestamp (ascending — earlier submission advantage)
-  4. Immutable MongoDB ObjectId comparison (ascending)
-- Legitimate scores of 0 remain valid and ranked.
-- Pending and failed repository evaluations are tracked and separated.
+### 3. 📱 Cross-Platform Flutter Client (`flutter_app/`)
+* Built with Flutter 3.29 & Dart 3.14.
+* Adheres to the YouKT executive design system:
+  - Clean light SaaS theme with high-contrast slate borders.
+  - Inter Google Fonts typography.
+  - Custom radial score painters and metric overview cards.
+  - Real-time candidate evaluation inspector and AI recruiter copilot.
+  - Zero unicode emojis; pure Lucide & Material Symbols.
 
-### 4. 🛡️ Publication Dirty Guard & Decision Support
-- Atomic `isRankingDirty` flag invalidates stale rankings whenever scores, repositories, or weights change.
-- Publishing is strictly guarded: stale or dirty rankings cannot be published.
-- Organizers manually review AI recommendations, select winner counts, and publish official winners.
+### 4. ☁️ Serverpod Cloud Backend (`hiresphere_server/`)
+* Dart-native backend running on **Serverpod Cloud** with Google Cloud infrastructure.
+* Endpoints for candidates and job matching:
+  - `CandidateEndpoint.evaluateCandidate`
+  - `JobEndpoint.listJobs`
+* Live public endpoints responding with HTTP 200 OK:
+  - API: `https://hiresphere-ai.api.serverpod.space`
+  - Web: `https://hiresphere-ai.serverpod.space`
 
-### 5. 👥 Participant Dashboard & Transparency
-- Participants submit their public GitHub URL directly without requiring prior presentation decks.
-- Real-time status tracking: `NOT_SUBMITTED`, `ANALYZING`, `EVALUATED`, `FAILED`.
-- Privacy masking protects scores and ranks from participant visibility until organizers publish official results.
-
-### 6. 📥 Comprehensive CSV Export
-- Organizers and judges can export the full repository leaderboard as CSV:
-  - Rank, Team Name, Project Title, Track, GitHub Repository URL, Technical Score, 5 Rubric Criteria Scores, Winner Status, and Executive AI Summary.
-- **5-Stage Total Ordering:**
-  1. **Final Composite Score (descending):** Primary ranking criterion, normalized to fixed 2 decimal places integer precision (`Math.round(score * 100)`).
-  2. **GitHub Technical Score (descending):** Breaks composite ties with normalized integer precision.
-  3. **Pitch Deck Score (descending):** Breaks technical ties with normalized integer precision.
-  4. **Submission CreatedAt Timestamp (ascending):** Breaks score ties using earlier submission time (first-come advantage).
-  5. **Team ID Lexicographical Comparison (ascending):** Compares unique 24-character hexadecimal MongoDB ObjectIds (`String(a.teamId).localeCompare(String(b.teamId))`).
-- **Mathematical Total Ordering & Strict Transitivity Guarantee:** Normalizing scores into discrete integer equivalence classes eliminates floating-point epsilon cycles (e.g., 0.0001 intransitivity across 3+ teams) and guarantees strict weak ordering. Combined with unique MongoDB ObjectIds, rankings are mathematically total, 100% deterministic, and completely reproducible across repeated calculations.
-
-### 9. 🔒 Publication Invalidation & Atomic `isRankingDirty` Safeguard
-- **Explicit Dirty State Engine:** Any modification to pitch deck scores, GitHub evaluations, or scoring weights immediately trips `isRankingDirty = true`.
-- **Immunity to Timestamp Collisions:** Eliminates same-millisecond race conditions between recalculation and invalidation by relying on atomic boolean dirty state and versioned increments (`rankingVersion`).
-- **Recalculation Requirement:** Successful execution of fresh rankings is the only operation that clears `isRankingDirty = false`.
-- **Publish Safeguards:**
-  - Strictly blocks publishing if `isRankingDirty === true`.
-  - Blocks publishing if any shortlisted team has a pending or failed evaluation (`PENDING_CODE`, `FAILED_CODE`, or unsubmitted deck).
-  - Blocks publishing if rankings have not been calculated with currently configured weights (`lastCalculatedPitchWeight !== pitchWeight`).
-  - Blocks publishing if `winnerCount` exceeds eligible ranked teams.
-  - Blocks publishing if no valid saved ranking exists.
-- **Participant Privacy Guard:** Participant-facing endpoints (`/api/user-submission`, `/api/submissions`, `/api/submissions/[id]`, `/api/export`) enforce strict server-side masking of `finalScore`, `finalScoreBreakdown`, `finalRank`, `isWinner`, and `winnerPosition` until the organizer explicitly publishes results.
+### 5. ⚖️ Deterministic Server-Side Ranking Engine
+* Highest score receives **Rank 1**.
+* Discrete integer-cent precision (`Math.round(score * 100)`) eliminates floating-point epsilon cycles.
+* 5-Stage deterministic tie-breaker (Composite Score -> Technical Score -> Pitch Score -> Timestamp -> ObjectId).
+* Atomic `isRankingDirty` safeguard prevents publishing outdated or invalidated leaderboards.
 
 ---
 
-## 🏗️ Architecture & Workflow
+## 📊 100-Point Technical Evaluation Rubric
 
-```mermaid
-flowchart TD
-    subgraph Multi-Theme Hackathon Setup
-        O[Organizer Portal] -->|Configure 5 Themes & AI Prompts| H[Hackathon Config]
-        H -->|Theme-Specific Weights & Mandatory Slides| TR[Track Rubrics]
-    end
-
-    subgraph Phase 1: Pitch Deck Screening
-        T[50 Teams Register & Submit Deck] -->|Select Theme & Drop PDF| B[Server-side PDF Extraction]
-        B --> D[Gemini 2.5 Flash Engine]
-        H -.->|Injects Theme & Custom Rules| D
-        TR -.->|Injects Rubrics & Weights| D
-        D --> E[Normalized Score & Feedback]
-        E --> DB[(MongoDB Atlas)]
-    end
-
-    subgraph Leaderboard & Top 25 Shortlisting
-        DB --> L[Live Ranked Leaderboard]
-        L --> SL[🏆 Top 25 Shortlist Filter]
-        L --> BL[Blind Mode Redaction]
-        SL --> EXP[📥 Export Top 25 Shortlist CSV]
-    end
-
-    subgraph Phase 2: Codebase Verification
-        O -.->|Unlock Phase 2 for Top 25| GH_SUB[Top 25 Teams Submit GitHub URL]
-        GH_SUB --> GH_API[GitHub REST API Scraper]
-        GH_API --> GH_EVA[Gemini Code Complexity Engine]
-        GH_EVA --> DB
-    end
-```
-
----
-
-## 🛠️ Technology Stack
-
-| Layer | Technology | Purpose |
-|---|---|---|
-
-| **Framework** | Next.js 16 (App Router, Turbopack / Webpack) | High-performance React SSR & API routes |
-| **Language** | TypeScript 5.0 | End-to-end type safety |
-| **Styling** | Tailwind CSS v4, Lucide Icons | Responsive, modern dark-mode design |
-| **AI Model** | Google Gemini 2.5 Flash (`@google/genai`) | Lightning-fast structured JSON evaluation with prompt conditioning |
-| **Database** | MongoDB Atlas with Mongoose ODM | Hackathons, submissions, teams, tracks & settings persistence |
-| **Auth** | NextAuth.js (v4) with bcryptjs | Secure JWT credential authentication for judges |
-| **Document Processing** | `pdf2json` | Serverless-safe text extraction from PDF buffers |
-| **Reporting** | `jsPDF` + `jspdf-autotable` | Client-side branded scorecard PDF generation |
-| **Analytics** | Recharts | Multi-axis radar visualizations |
-| **Deployment** | Node.js Server / Edge Runtime | Production-ready edge deployment |
-
----
-
-## 📁 Repository Structure
-
-```
-├── public/                  # Static assets & icons
-├── src/
-│   ├── app/
-│   │   ├── admin/           # Admin leaderboard, settings, hackathons & scorecard pages
-│   │   │   ├── hackathons/  # Multi-hackathon management portal (CRUD, prompts, tracks)
-│   │   │   ├── settings/    # Event settings & rubric management
-│   │   │   ├── submission/  # Detailed submission scorecards & radar view
-│   │   │   └── page.tsx     # Live ranked leaderboard with Top 25 shortlist filter
-│   │   ├── api/             # RESTful API endpoints
-│   │   │   ├── hackathons/  # Hackathon CRUD endpoints with dynamic slug generation
-│   │   │   ├── upload/      # Pitch deck upload & Gemini evaluation pipeline
-│   │   │   ├── submit-code/ # Phase 2 GitHub repository analysis
-│   │   │   ├── submissions/ # Filtered submissions by hackathon, theme & team
-│   │   │   ├── teams/       # Team retrieval & metadata
-│   │   │   ├── export/      # CSV leaderboard & Top 25 export
-│   │   │   └── auth/        # NextAuth authentication handlers
-│   │   ├── dashboard/       # Participant self-service status portal
-│   │   ├── login/           # Judge / Admin authentication portal
-│   │   ├── submit-code/     # Phase 2 GitHub codebase submission portal
-│   │   ├── layout.tsx       # Root layout & providers
-│   │   └── page.tsx         # Participant landing page with theme selector
-│   ├── components/          # Reusable UI & presentation components
-│   │   ├── DocumentUpload.tsx # Pitch deck uploader with dynamic hackathon briefs
-│   │   ├── ScoreRadarChart.tsx# Recharts radar skill visualization
-│   │   ├── Navbar.tsx       # Navigation bar with role-based links
-│   │   └── ui/              # shadcn/ui primitives
-│   ├── lib/                 # Core utility modules
-│   │   ├── auth.ts          # NextAuth configuration & admin auto-seed
-│   │   ├── gemini.ts        # Gemini 2.5 Flash prompts, custom prompt injection & parsers
-│   │   ├── github.ts        # GitHub API repository metadata & commit fetcher
-│   │   ├── hackathon-service.ts # Hackathon seeding & backward-compatibility resolver
-│   │   ├── mongodb.ts       # Cached MongoDB Mongoose connection handler
-│   │   ├── pdf-generator.ts # jsPDF scorecard generation logic
-│   │   └── pdf-parser.ts    # pdf2json memory buffer extraction
-│   └── models/              # Mongoose schema definitions
-│       ├── Hackathon.ts     # Multi-hackathon schema (themes, prompts, tracks, phases)
-│       ├── Settings.ts      # Global configuration & default track rubrics
-│       ├── Submission.ts    # Evaluation scores, criteria & feedback
-│       ├── Team.ts          # Team metadata, tracks & members
-│       └── User.ts          # Authentication roles (Admin, Judge, Participant)
-└── package.json
-```
+| Criteria | Weight | Focus Areas |
+|---|---:|---|
+| **Code Quality & Maintainability** | 25 | Readability, naming conventions, separation of concerns, clean interfaces, error management. |
+| **Technical Implementation Depth** | 25 | Non-trivial engineering logic, API/database integrations, framework depth, real logic vs boilerplate templates. |
+| **Architecture & Modularity** | 20 | Directory organization, decoupling of frontend/backend/services, state management. |
+| **Testing & Error Handling** | 15 | Automated unit/integration test presence, test coverage, robust error boundaries, graceful fallbacks. |
+| **Documentation & Git Cadence** | 15 | Setup instructions, prerequisites, environment configuration guidance, meaningful commit cadence. |
+| **Total** | **100** | **Normalized Technical Score** |
 
 ---
 
 ## 🚀 Quickstart
 
-### 1. Clone the repository
+### Prerequisites
+* **Node.js**: v20 or higher
+* **Dart SDK**: v3.0+ (Installed at `C:\Users\anshg\dart-sdk`)
+* **Flutter**: v3.20+ (Optional for mobile compilation)
+
+---
+
+### 1. Web Application (Next.js)
+
 ```bash
+# Clone the repository
 git clone https://github.com/AnshGour16/HACKATHON_BUILDERTHEORY.git
 cd HACKATHON_BUILDERTHEORY
-```
 
-### 2. Install dependencies
-```bash
+# Install dependencies
 npm install
-```
 
-### 3. Configure environment variables
-Create a `.env.local` file in the root directory:
-```env
-MONGODB_URI=your_mongodb_connection_string
-GEMINI_API_KEY=your_gemini_api_key
-NEXTAUTH_SECRET=your_nextauth_secret_key
-NEXTAUTH_URL=http://localhost:3000
-```
+# Configure environment variables (.env.local)
+cp .env.example .env.local
 
-### 4. Run the development server
-```bash
+# Run development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the application.
+Open [http://localhost:3000](http://localhost:3000) to view the web dashboard.
 
 ---
 
-## 🔑 Judge / Admin Credentials for Testing
+### 2. Flutter Mobile & Web Client (`flutter_app/`)
 
-To test the admin features out of the box, use the default credentials:
-- **Portal:** `/login` or click **Judge Login** on the navbar
-- **Email:** `admin@hackathon.com`
-- **Password:** `admin123`
+```bash
+cd flutter_app
 
-*(The database automatically initializes this account on your first login attempt if it does not already exist.)*
+# Fetch Flutter dependencies
+flutter pub get
+
+# Run on Chrome
+flutter run -d chrome
+
+# Or build for Android
+flutter build apk --release
+```
 
 ---
 
-## 🛡️ Security & Privacy
+### 3. Serverpod Backend Server (`hiresphere_server/`)
 
-- **Safe Credential Handling:** Passwords hashed with `bcryptjs` (salt factor 10); environment variables sanitized to prevent credential leakages.
-- **Serverless Resilience:** PDF processing operates in-memory with graceful fallback for read-only serverless filesystems.
-- **API Protection:** Admin mutation endpoints enforce NextAuth session role validation.
+```bash
+cd hiresphere_server
+
+# Install Dart dependencies
+dart pub get
+
+# Run Serverpod server locally
+dart run bin/main.dart
+
+# Or deploy to Serverpod Cloud
+serverpod cloud deploy -p hiresphere-ai
+```
+
+---
+
+## 🔑 Test Credentials (Judge & Admin Access)
+
+For evaluation and testing out-of-the-box:
+* **Login URL:** [https://hackathon-ats.vercel.app/login](https://hackathon-ats.vercel.app/login)
+* **Email:** `admin@hackathon.com`
+* **Password:** `admin123`
+
+*(The database automatically auto-provisions this account on first sign-in if not present).*
+
+---
+
+## 🛡️ Security & Integrity
+
+* **Zero Arbitrary Execution:** Never runs untrusted user code on host environments.
+* **Serverless Resilience:** In-memory PDF parsing and GitHub REST API integration prevents container exhaustion.
+* **Role-Based Access Control:** All admin mutation endpoints are secured via NextAuth session validation.
+* **Anti-SSRF Protection:** GitHub repository URLs are verified against official GitHub domains before processing.
 
 ---
 
