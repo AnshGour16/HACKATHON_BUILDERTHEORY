@@ -1,0 +1,10 @@
+name: hiresphere_client
+description: "Client package for HireSphere Serverpod backend"
+version: 1.0.0
+publish_to: "none"
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  serverpod_client: ^2.0.0

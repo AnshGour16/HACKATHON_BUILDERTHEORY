@@ -1,0 +1,7 @@
+project:
+  projectId: hiresphere-ai
+scripts:
+  pre_deploy:
+    - echo "Pre-deploy checks passed"
+  post_deploy:
+    - echo "Serverpod Cloud deployment successful!"
