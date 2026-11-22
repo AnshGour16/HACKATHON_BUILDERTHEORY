@@ -42,6 +42,7 @@ This project includes a complete **Serverpod** (Dart-native cloud backend) and *
 
 ## 3. Submitting to Hackathon Judges
 When submitting to the hackathon form:
-- **Serverpod Cloud Live Endpoint:** `https://hiresphere-ai.serverpod.cloud` (or your assigned subdomain)
-- **Frontend / Web Demo:** `https://hiresphere-ai.serverpod.cloud/app` (or Vercel link: `https://hackathon-ats.vercel.app`)
+- **Serverpod Cloud Live Endpoint (Verified Live & 200 OK):** `https://hiresphere-ai.api.serverpod.space`
+- **Serverpod Web Endpoint:** `https://hiresphere-ai.serverpod.space`
+- **Frontend / Web Demo (Vercel Live):** `https://hackathon-ats.vercel.app`
 - **GitHub Repository:** `https://github.com/AnshGour16/HACKATHON_BUILDERTHEORY`

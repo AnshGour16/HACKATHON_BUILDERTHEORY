@@ -1,17 +1,17 @@
 apiServer:
   port: 8080
-  publicHost: hiresphere-ai.serverpod.cloud
+  publicHost: hiresphere-ai.api.serverpod.space
   publicPort: 443
   publicScheme: https
 
 insightsServer:
   port: 8081
-  publicHost: insights.hiresphere-ai.serverpod.cloud
+  publicHost: hiresphere-ai.insights.serverpod.space
   publicPort: 443
   publicScheme: https
 
 webServer:
   port: 8082
-  publicHost: app.hiresphere-ai.serverpod.cloud
+  publicHost: hiresphere-ai.serverpod.space
   publicPort: 443
   publicScheme: https

@@ -4,8 +4,9 @@ import '../models/candidate.dart';
 import '../models/job.dart';
 
 class ApiService {
-  // Configured default baseUrl pointing to HireSphere backend
-  static const String baseUrl = 'http://localhost:3000/api';
+  // Live Serverpod backend deployed on Serverpod Cloud
+  static const String serverpodUrl = 'https://hiresphere-ai.api.serverpod.space';
+  static const String baseUrl = 'https://hackathon-ats.vercel.app/api';
 
   static Future<List<Candidate>> fetchCandidates() async {
     try {

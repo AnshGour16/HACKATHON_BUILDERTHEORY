@@ -1,3 +1,4 @@
+import 'package:serverpod/protocol.dart';
 import 'package:serverpod/serverpod.dart';
 
 void run(List<String> args) async {
@@ -10,7 +11,16 @@ void run(List<String> args) async {
   await pod.start();
 }
 
-class Protocol extends SerializationManager {
+class Protocol extends SerializationManagerServer {
+  @override
+  String getModuleName() => 'hiresphere';
+
+  @override
+  Table? getTableForType(Type t) => null;
+
+  @override
+  List<TableDefinition> getTargetTableDefinitions() => [];
+
   @override
   Map<String, dynamic> serialize(dynamic object) => {};
 
