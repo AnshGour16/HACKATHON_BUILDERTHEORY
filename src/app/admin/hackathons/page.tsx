@@ -234,27 +234,25 @@ export default function HackathonsManagementPage() {
     };
 
     return (
-        <div className="min-h-screen p-6 md:p-10 relative">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
-
-            <div className="max-w-6xl mx-auto space-y-8 relative z-10">
+        <div className="min-h-screen bg-slate-50 text-slate-900 p-6 md:p-10">
+            <div className="max-w-6xl mx-auto space-y-8">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex items-center gap-3">
-                        <Button asChild variant="outline" size="icon" className="border-neutral-800 bg-neutral-900/50">
+                        <Button asChild variant="outline" size="icon" className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs">
                             <Link href="/admin"><ArrowLeft className="h-4 w-4" /></Link>
                         </Button>
                         <div>
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-1">
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-xs font-semibold text-indigo-700 mb-1">
                                 <Trophy className="w-3.5 h-3.5" /> Multi-Hackathon Hub
                             </div>
-                            <h1 className="text-3xl font-bold tracking-tight text-white">Manage Hackathons</h1>
-                            <p className="text-neutral-400 text-sm">Configure distinct themes, descriptions, tracks, and tailored AI judging prompts per event.</p>
+                            <h1 className="text-3xl font-black tracking-tight text-slate-900">Manage Hackathons</h1>
+                            <p className="text-slate-500 text-sm">Configure distinct themes, descriptions, tracks, and tailored AI judging prompts per event.</p>
                         </div>
                     </div>
 
                     {!isFormOpen && (
-                        <Button onClick={() => setIsFormOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                        <Button onClick={() => setIsFormOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs">
                             <Plus className="w-4 h-4 mr-2" /> Create New Hackathon
                         </Button>
                     )}
@@ -262,19 +260,19 @@ export default function HackathonsManagementPage() {
 
                 {/* Create / Edit Form */}
                 {isFormOpen && (
-                    <Card className="border-primary/30 bg-background/80 backdrop-blur-xl animate-in slide-in-from-top-4 duration-300">
-                        <CardHeader className="border-b border-neutral-800/80 pb-4">
+                    <Card className="border border-slate-200/80 bg-white shadow-xs rounded-2xl animate-in slide-in-from-top-4 duration-300 overflow-hidden">
+                        <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-4">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
-                                        <Sparkles className="w-5 h-5 text-primary" />
+                                    <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                        <Sparkles className="w-5 h-5 text-indigo-600" />
                                         {editingId ? 'Edit Hackathon Configuration' : 'Create New Hackathon'}
                                     </CardTitle>
-                                    <CardDescription>
+                                    <CardDescription className="text-slate-500 text-xs mt-1">
                                         Define event themes, rules, track rubrics, and the exact custom AI prompt Gemini will use to score submissions.
                                     </CardDescription>
                                 </div>
-                                <Button variant="ghost" size="sm" onClick={resetForm} className="text-neutral-400 hover:text-white">
+                                <Button variant="ghost" size="sm" onClick={resetForm} className="text-slate-500 hover:text-slate-800">
                                     Cancel
                                 </Button>
                             </div>
@@ -283,7 +281,7 @@ export default function HackathonsManagementPage() {
                             <form onSubmit={handleSave} className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="hName" className="font-semibold text-white">Hackathon Name *</Label>
+                                        <Label htmlFor="hName" className="font-bold text-slate-900 text-xs">Hackathon Name *</Label>
                                         <Input
                                             id="hName"
                                             required
@@ -295,25 +293,25 @@ export default function HackathonsManagementPage() {
                                                     setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''));
                                                 }
                                             }}
-                                            className="bg-neutral-900/60 border-neutral-800 text-white"
+                                            className="bg-slate-50 border-slate-200 text-slate-900 text-sm focus:bg-white"
                                         />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="hSlug" className="font-semibold text-white">URL Identifier / Slug</Label>
+                                        <Label htmlFor="hSlug" className="font-bold text-slate-900 text-xs">URL Identifier / Slug</Label>
                                         <Input
                                             id="hSlug"
                                             placeholder="e.g. ai-climate-2026"
                                             value={slug}
                                             onChange={(e) => setSlug(e.target.value)}
-                                            className="bg-neutral-900/60 border-neutral-800 text-white font-mono text-xs"
+                                            className="bg-slate-50 border-slate-200 text-slate-900 font-mono text-xs focus:bg-white"
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="hTheme" className="font-semibold text-white flex items-center gap-2">
-                                        <Target className="w-4 h-4 text-indigo-400" /> Hackathon Theme *
+                                    <Label htmlFor="hTheme" className="font-bold text-slate-900 text-xs flex items-center gap-2">
+                                        <Target className="w-4 h-4 text-indigo-600" /> Hackathon Theme *
                                     </Label>
                                     <Input
                                         id="hTheme"
@@ -321,16 +319,16 @@ export default function HackathonsManagementPage() {
                                         placeholder="e.g. Autonomous Multi-Agent Orchestration & Sustainable Green Computing"
                                         value={theme}
                                         onChange={(e) => setTheme(e.target.value)}
-                                        className="bg-neutral-900/60 border-neutral-800 text-white"
+                                        className="bg-slate-50 border-slate-200 text-slate-900 text-sm focus:bg-white"
                                     />
-                                    <p className="text-xs text-neutral-400">
+                                    <p className="text-xs text-slate-500">
                                         The overarching theme used by Gemini to judge problem-solution fit and contextual relevance.
                                     </p>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="hDesc" className="font-semibold text-white flex items-center gap-2">
-                                        <FileText className="w-4 h-4 text-emerald-400" /> Description & Event Overview
+                                    <Label htmlFor="hDesc" className="font-bold text-slate-900 text-xs flex items-center gap-2">
+                                        <FileText className="w-4 h-4 text-emerald-600" /> Description &amp; Event Overview
                                     </Label>
                                     <textarea
                                         id="hDesc"
@@ -338,20 +336,20 @@ export default function HackathonsManagementPage() {
                                         placeholder="Explain the hackathon goals, problem space, target audience, and expectations..."
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
-                                        className="w-full rounded-md border border-neutral-800 bg-neutral-900/60 p-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                                        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
                                     />
                                 </div>
 
                                 {/* Custom AI Prompt Section */}
-                                <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-2.5">
+                                <div className="p-4 rounded-xl bg-indigo-50/60 border border-indigo-200 space-y-2.5">
                                     <div className="flex items-center gap-2">
-                                        <Bot className="w-5 h-5 text-primary" />
-                                        <Label htmlFor="hPrompt" className="text-sm font-bold text-white">
-                                            Specific AI Judging Prompt & Guidelines
+                                        <Bot className="w-5 h-5 text-indigo-600" />
+                                        <Label htmlFor="hPrompt" className="text-sm font-bold text-slate-900">
+                                            Specific AI Judging Prompt &amp; Guidelines
                                         </Label>
                                     </div>
-                                    <p className="text-xs text-neutral-300 leading-relaxed">
-                                        Customize the exact instructions Gemini 2.5 Flash will use when reviewing presentations for this hackathon. Mention special criteria, penalty rules (e.g. penalize generic chatbot wrappers), or required architectural patterns.
+                                    <p className="text-xs text-slate-600 leading-relaxed">
+                                        Customize the instructions Gemini will use when reviewing submissions for this hackathon. Mention special criteria, penalty rules (e.g. penalize generic chatbot wrappers), or required architectural patterns.
                                     </p>
                                     <textarea
                                         id="hPrompt"
@@ -359,78 +357,78 @@ export default function HackathonsManagementPage() {
                                         placeholder="e.g. Scrutinize the technical architecture for genuine multi-agent coordination. Strongly penalize thin wrappers around OpenAI APIs. Reward real-world viability, low latency, and energy-efficient inference..."
                                         value={customAiPrompt}
                                         onChange={(e) => setCustomAiPrompt(e.target.value)}
-                                        className="w-full rounded-md border border-primary/30 bg-neutral-950 p-3 text-sm text-neutral-200 focus:outline-none focus:ring-2 focus:ring-primary font-mono text-xs leading-relaxed"
+                                        className="w-full rounded-xl border border-indigo-200 bg-white p-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-xs leading-relaxed"
                                     />
                                 </div>
 
                                 {/* Phase Toggles */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                                    <label className="flex items-center gap-3 p-3.5 rounded-lg border border-neutral-800 bg-neutral-900/40 cursor-pointer hover:bg-neutral-900/70 transition-colors">
+                                    <label className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100/60 transition-colors">
                                         <input
                                             type="checkbox"
                                             checked={isCodeSubmissionOpen}
                                             onChange={(e) => setIsCodeSubmissionOpen(e.target.checked)}
-                                            className="w-4 h-4 accent-primary rounded"
+                                            className="w-4 h-4 accent-indigo-600 rounded"
                                         />
                                         <div>
-                                            <div className="text-sm font-semibold text-white">Phase 2: Code Submission Open</div>
-                                            <div className="text-xs text-neutral-400">Unlock GitHub repo submissions for participants</div>
+                                            <div className="text-sm font-bold text-slate-900">Phase 2: Code Submission Open</div>
+                                            <div className="text-xs text-slate-500">Unlock GitHub repo submissions for participants</div>
                                         </div>
                                     </label>
 
-                                    <label className="flex items-center gap-3 p-3.5 rounded-lg border border-neutral-800 bg-neutral-900/40 cursor-pointer hover:bg-neutral-900/70 transition-colors">
+                                    <label className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100/60 transition-colors">
                                         <input
                                             type="checkbox"
                                             checked={blindJudgingEnabled}
                                             onChange={(e) => setBlindJudgingEnabled(e.target.checked)}
-                                            className="w-4 h-4 accent-primary rounded"
+                                            className="w-4 h-4 accent-indigo-600 rounded"
                                         />
                                         <div>
-                                            <div className="text-sm font-semibold text-white">Blind Judging Mode</div>
-                                            <div className="text-xs text-neutral-400">Redact team names & identities on leaderboards</div>
+                                            <div className="text-sm font-bold text-slate-900">Blind Judging Mode</div>
+                                            <div className="text-xs text-slate-500">Redact team names &amp; identities on leaderboards</div>
                                         </div>
                                     </label>
                                 </div>
 
                                 {/* Tracks & Rubrics */}
-                                <div className="space-y-4 pt-4 border-t border-neutral-800">
+                                <div className="space-y-4 pt-4 border-t border-slate-100">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                                <Layers className="w-5 h-5 text-indigo-400" /> Tracks & Scoring Rubrics
+                                            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                                <Layers className="w-5 h-5 text-indigo-600" /> Tracks &amp; Scoring Rubrics
                                             </h3>
-                                            <p className="text-xs text-neutral-400">Add custom categories, mandatory slides, and weighted scoring criteria.</p>
+                                            <p className="text-xs text-slate-500">Add custom categories, mandatory requirements, and weighted scoring criteria.</p>
                                         </div>
-                                        <Button type="button" onClick={addTrack} variant="outline" size="sm" className="border-primary/40 text-primary hover:bg-primary/10">
+                                        <Button type="button" onClick={addTrack} variant="outline" size="sm" className="border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 font-semibold text-xs">
                                             <Plus className="w-4 h-4 mr-1" /> Add Track
                                         </Button>
                                     </div>
 
                                     {tracks.map((track, tIdx) => (
-                                        <Card key={tIdx} className="border-neutral-800 bg-neutral-950/60">
-                                            <CardHeader className="flex flex-row items-center justify-between pb-3">
+                                        <Card key={tIdx} className="border border-slate-200 bg-slate-50/50 rounded-xl overflow-hidden shadow-xs">
+                                            <CardHeader className="flex flex-row items-center justify-between pb-3 bg-white border-b border-slate-100">
                                                 <div className="flex-1 mr-4">
-                                                    <Label className="text-xs text-neutral-400">Track Name</Label>
+                                                    <Label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Track Name</Label>
                                                     <Input
                                                         value={track.name}
                                                         placeholder="e.g. Web3, Healthcare, FinTech"
                                                         onChange={(e) => updateTrackName(tIdx, e.target.value)}
-                                                        className="h-8 text-sm font-semibold mt-1 bg-neutral-900/70"
+                                                        className="h-8 text-sm font-bold mt-1 bg-slate-50 border-slate-200 focus:bg-white"
                                                     />
                                                 </div>
                                                 {tracks.length > 1 && (
-                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeTrack(tIdx)} className="text-red-400 hover:bg-red-900/20">
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeTrack(tIdx)} className="text-rose-600 hover:bg-rose-50">
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
                                                 )}
                                             </CardHeader>
-                                            <CardContent className="space-y-4 pt-0">
+                                            <CardContent className="space-y-4 pt-4">
                                                 {/* Mandatory Slides */}
-                                                <div className="p-3 bg-neutral-900/30 rounded-lg border border-neutral-800/80">
+                                                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
                                                     <div className="flex justify-between items-center mb-2">
-                                                        <span className="text-xs font-semibold text-neutral-300">Mandatory Slides / Sections</span>
-                                                        <Button type="button" onClick={() => addRequiredSlide(tIdx)} size="sm" variant="ghost" className="h-6 text-xs text-primary">
-                                                            <Plus className="w-3 h-3 mr-1" /> Add Slide Rule
+                                                        <span className="text-xs font-bold text-slate-700">Mandatory Requirements / Sections</span>
+                                                        <Button type="button" onClick={() => addRequiredSlide(tIdx)} size="sm" variant="ghost" className="h-6 text-xs text-indigo-600 font-semibold">
+                                                            <Plus className="w-3 h-3 mr-1" /> Add Section
                                                         </Button>
                                                     </div>
                                                     <div className="space-y-2">
@@ -440,42 +438,42 @@ export default function HackathonsManagementPage() {
                                                                     value={slide}
                                                                     placeholder="e.g. Revenue Model, Architecture Diagram"
                                                                     onChange={(e) => updateRequiredSlide(tIdx, sIdx, e.target.value)}
-                                                                    className="h-8 text-xs bg-neutral-900/80"
+                                                                    className="h-8 text-xs bg-slate-50 border-slate-200 text-slate-900"
                                                                 />
-                                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeRequiredSlide(tIdx, sIdx)} className="h-8 w-8 text-neutral-400">
+                                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeRequiredSlide(tIdx, sIdx)} className="h-8 w-8 text-slate-400 hover:text-rose-600">
                                                                     <Trash2 className="w-3.5 h-3.5" />
                                                                 </Button>
                                                             </div>
                                                         ))}
                                                         {track.requiredSlides.length === 0 && (
-                                                            <p className="text-xs text-neutral-500 italic">No mandatory slides defined.</p>
+                                                            <p className="text-xs text-slate-400 italic">No mandatory requirements defined.</p>
                                                         )}
                                                     </div>
                                                 </div>
 
                                                 {/* Scoring Rubrics */}
-                                                <div className="p-3 bg-primary/5 rounded-lg border border-primary/10">
+                                                <div className="p-3 bg-indigo-50/40 rounded-xl border border-indigo-100">
                                                     <div className="flex justify-between items-center mb-2">
-                                                        <span className="text-xs font-semibold text-neutral-300">Scoring Rubrics (AI Criteria)</span>
-                                                        <Button type="button" onClick={() => addRubric(tIdx)} size="sm" variant="ghost" className="h-6 text-xs text-primary">
+                                                        <span className="text-xs font-bold text-indigo-900">Scoring Rubrics (AI Criteria)</span>
+                                                        <Button type="button" onClick={() => addRubric(tIdx)} size="sm" variant="ghost" className="h-6 text-xs text-indigo-700 font-semibold">
                                                             <Plus className="w-3 h-3 mr-1" /> Add Criterion
                                                         </Button>
                                                     </div>
                                                     <div className="space-y-3">
                                                         {track.rubrics.map((rubric, rIdx) => (
-                                                            <div key={rIdx} className="grid grid-cols-[1fr_80px_auto] gap-2 items-start border-l-2 border-primary/20 pl-3 py-1">
+                                                            <div key={rIdx} className="grid grid-cols-[1fr_80px_auto] gap-2 items-start border-l-2 border-indigo-300 pl-3 py-1">
                                                                 <div className="space-y-1">
                                                                     <Input
                                                                         value={rubric.criterion}
                                                                         onChange={(e) => updateRubric(tIdx, rIdx, 'criterion', e.target.value)}
                                                                         placeholder="Criterion Name (e.g. AI Novelty)"
-                                                                        className="h-7 text-xs font-semibold"
+                                                                        className="h-7 text-xs font-bold bg-white border-slate-200 text-slate-900"
                                                                     />
                                                                     <Input
                                                                         value={rubric.description}
                                                                         onChange={(e) => updateRubric(tIdx, rIdx, 'description', e.target.value)}
                                                                         placeholder="What AI should evaluate for this criterion..."
-                                                                        className="h-7 text-xs text-neutral-400"
+                                                                        className="h-7 text-xs bg-white border-slate-200 text-slate-500"
                                                                     />
                                                                 </div>
                                                                 <div>
@@ -483,10 +481,10 @@ export default function HackathonsManagementPage() {
                                                                         type="number"
                                                                         value={rubric.weightage}
                                                                         onChange={(e) => updateRubric(tIdx, rIdx, 'weightage', parseInt(e.target.value) || 10)}
-                                                                        className="h-7 text-xs text-center"
+                                                                        className="h-7 text-xs text-center font-bold bg-white border-slate-200 text-slate-900"
                                                                     />
                                                                 </div>
-                                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeRubric(tIdx, rIdx)} className="h-7 w-7 text-red-400">
+                                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeRubric(tIdx, rIdx)} className="h-7 w-7 text-slate-400 hover:text-rose-600">
                                                                     <Trash2 className="w-3.5 h-3.5" />
                                                                 </Button>
                                                             </div>
@@ -498,11 +496,11 @@ export default function HackathonsManagementPage() {
                                     ))}
                                 </div>
 
-                                <div className="flex justify-end gap-3 pt-4 border-t border-neutral-800">
-                                    <Button type="button" variant="outline" onClick={resetForm} disabled={saving} className="border-neutral-800">
+                                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                                    <Button type="button" variant="outline" onClick={resetForm} disabled={saving} className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold shadow-xs">
                                         Cancel
                                     </Button>
-                                    <Button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
+                                    <Button type="submit" disabled={saving} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs">
                                         {saving ? 'Saving...' : editingId ? 'Update Hackathon' : 'Create Hackathon'}
                                     </Button>
                                 </div>
@@ -514,60 +512,60 @@ export default function HackathonsManagementPage() {
                 {/* List of Hackathons */}
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-white">Configured Hackathons ({hackathons.length})</h2>
+                        <h2 className="text-xl font-bold text-slate-900">Configured Hackathons ({hackathons.length})</h2>
                     </div>
 
                     {loading ? (
-                        <div className="text-center py-12 text-neutral-400">Loading hackathon configurations...</div>
+                        <div className="text-center py-12 text-slate-400">Loading hackathon configurations...</div>
                     ) : hackathons.length === 0 ? (
-                        <div className="text-center py-12 text-neutral-400">No hackathons configured yet. Click above to create one.</div>
+                        <div className="text-center py-12 text-slate-400">No hackathons configured yet. Click above to create one.</div>
                     ) : (
                         <div className="grid grid-cols-1 gap-4">
                             {hackathons.map((h) => (
-                                <Card key={h._id} className="border-neutral-800/80 bg-neutral-900/40 backdrop-blur-sm hover:border-primary/30 transition-all">
+                                <Card key={h._id} className="border border-slate-200/80 bg-white shadow-xs rounded-2xl hover:shadow-sm transition-all overflow-hidden">
                                     <CardContent className="p-6">
                                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                             <div className="space-y-2 flex-1">
                                                 <div className="flex flex-wrap items-center gap-2.5">
-                                                    <h3 className="text-xl font-bold text-white">{h.name}</h3>
-                                                    <Badge variant="outline" className="border-neutral-700 text-neutral-300 font-mono text-[11px]">
+                                                    <h3 className="text-xl font-black text-slate-900">{h.name}</h3>
+                                                    <Badge variant="outline" className="border-slate-200 text-slate-600 bg-slate-50 font-mono text-[11px]">
                                                         {h.slug}
                                                     </Badge>
-                                                    <Badge className={h.isCodeSubmissionOpen ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-neutral-800 text-neutral-400'}>
+                                                    <Badge className={h.isCodeSubmissionOpen ? 'bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold' : 'bg-slate-100 text-slate-600 border-slate-200'}>
                                                         Phase 2: {h.isCodeSubmissionOpen ? 'Unlocked' : 'Locked'}
                                                     </Badge>
                                                     {h.blindJudgingEnabled && (
-                                                        <Badge className="bg-indigo-500/10 text-indigo-300 border-indigo-500/20">
+                                                        <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 font-semibold">
                                                             Blind Mode ON
                                                         </Badge>
                                                     )}
                                                 </div>
 
                                                 {h.theme && (
-                                                    <div className="flex items-center gap-2 text-sm text-indigo-300 font-medium">
-                                                        <Target className="w-4 h-4 shrink-0 text-indigo-400" />
+                                                    <div className="flex items-center gap-2 text-sm text-indigo-700 font-semibold">
+                                                        <Target className="w-4 h-4 shrink-0 text-indigo-600" />
                                                         <span>Theme: {h.theme}</span>
                                                     </div>
                                                 )}
 
                                                 {h.description && (
-                                                    <p className="text-sm text-neutral-400 line-clamp-2">{h.description}</p>
+                                                    <p className="text-sm text-slate-600 line-clamp-2">{h.description}</p>
                                                 )}
 
                                                 {h.customAiPrompt && (
-                                                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-xs text-neutral-300 flex items-start gap-2">
-                                                        <Bot className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 flex items-start gap-2">
+                                                        <Bot className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                                                         <div>
-                                                            <span className="font-semibold text-primary">Custom AI Prompt: </span>
-                                                            <span className="italic">{h.customAiPrompt}</span>
+                                                            <span className="font-bold text-slate-900">Custom AI Prompt: </span>
+                                                            <span className="italic text-slate-600">{h.customAiPrompt}</span>
                                                         </div>
                                                     </div>
                                                 )}
 
-                                                <div className="flex flex-wrap gap-2 pt-1 text-xs text-neutral-400">
-                                                    <span className="font-semibold text-neutral-300">Tracks ({h.tracks?.length || 0}):</span>
+                                                <div className="flex flex-wrap gap-2 pt-1 text-xs text-slate-500">
+                                                    <span className="font-bold text-slate-700">Tracks ({h.tracks?.length || 0}):</span>
                                                     {h.tracks?.map((t, idx) => (
-                                                        <Badge key={idx} variant="secondary" className="bg-neutral-800/80 text-neutral-300 text-[11px]">
+                                                        <Badge key={idx} variant="secondary" className="bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200">
                                                             {t.name} ({t.rubrics?.length || 0} rubrics)
                                                         </Badge>
                                                     ))}
@@ -575,14 +573,14 @@ export default function HackathonsManagementPage() {
                                             </div>
 
                                             <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                                                <Button variant="outline" size="sm" onClick={() => handleEdit(h)} className="border-neutral-800 text-neutral-300 hover:bg-neutral-800">
+                                                <Button variant="outline" size="sm" onClick={() => handleEdit(h)} className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold shadow-xs">
                                                     <Edit3 className="w-4 h-4 mr-1.5" /> Edit
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => handleDelete(h._id, h.name)}
-                                                    className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                                                    className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
                                                     disabled={hackathons.length <= 1}
                                                 >
                                                     <Trash2 className="w-4 h-4" />

@@ -14,7 +14,6 @@ import { generateFeedbackPDF } from '@/lib/pdf-generator';
 import { ISubmission } from '@/models/Submission';
 import { ITeam } from '@/models/Team';
 
-// Create a UI specific interface since the API populates the team object
 interface ISubmissionWithTeam extends Omit<ISubmission, 'team' | 'hackathon'> {
     team: ITeam;
     hackathon?: { _id: string; name: string; theme: string };
@@ -51,44 +50,42 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
         fetchDetail();
     }, [unwrappedParams.id]);
 
-    if (loading) return <div className="min-h-screen bg-neutral-950 flex justify-center items-center text-white">Loading evaluation details...</div>;
-    if (!data) return <div className="min-h-screen bg-neutral-950 flex justify-center items-center text-white">Submission not found.</div>;
+    if (loading) return <div className="min-h-screen bg-slate-50 flex justify-center items-center text-slate-600 font-medium">Loading evaluation details...</div>;
+    if (!data) return <div className="min-h-screen bg-slate-50 flex justify-center items-center text-slate-600 font-medium">Submission not found.</div>;
 
     const gh = data.githubEvaluation;
     const repoScore = gh?.technicalScore ?? data.team?.githubScore ?? 0;
     const repoUrl = gh?.repoUrl || data.team?.githubUrl;
 
     return (
-        <div className="min-h-screen p-8 relative">
-            <div className="absolute top-10 left-10 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
-
-            <div className="max-w-4xl mx-auto space-y-8 relative z-10">
+        <div className="min-h-screen bg-slate-50 text-slate-900 p-6 md:p-10">
+            <div className="max-w-4xl mx-auto space-y-8">
                 {/* Header Profile */}
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div className="flex items-start gap-4">
-                        <Button asChild variant="outline" size="icon" className="shrink-0">
+                        <Button asChild variant="outline" size="icon" className="shrink-0 bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs">
                             <Link href="/admin"><ArrowLeft className="h-4 w-4" /></Link>
                         </Button>
                         <div>
                             <div className="flex flex-wrap items-center gap-2">
-                                <h1 className="text-3xl font-bold tracking-tight text-white">
+                                <h1 className="text-3xl font-black tracking-tight text-slate-900">
                                     {blindMode ? 'Team Redacted (Blind Mode)' : (data.team?.name || 'Unknown Team')}
                                 </h1>
-                                <Badge variant="outline" className="border-indigo-500/50 text-indigo-300">
+                                <Badge variant="outline" className="border-indigo-200 text-indigo-700 bg-indigo-50 font-semibold">
                                     {data.team?.track || 'General'} Track
                                 </Badge>
                                 {data.hackathon && (
-                                    <Badge variant="secondary" className="bg-purple-950/60 text-purple-300 border border-purple-500/30">
+                                    <Badge variant="secondary" className="bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
                                         {data.hackathon.name}
                                     </Badge>
                                 )}
                                 {gh?.status === 'EVALUATED' && (
-                                    <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs">
+                                    <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
                                         <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Evaluated
                                     </Badge>
                                 )}
                             </div>
-                            <p className="text-neutral-400 text-sm mt-1">{data.team?.problemStatement || 'No Problem Statement'}</p>
+                            <p className="text-slate-500 text-sm mt-1">{data.team?.problemStatement || 'No Problem Statement'}</p>
 
                             {repoUrl && !blindMode && (
                                 <div className="mt-2">
@@ -96,7 +93,7 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
                                         href={repoUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center text-sm text-indigo-400 hover:text-indigo-300 font-mono"
+                                        className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 font-mono"
                                     >
                                         <Github className="w-4 h-4 mr-1.5" />
                                         {repoUrl.replace(/^https?:\/\/github\.com\//, '')}
@@ -110,7 +107,7 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
                     <div className="flex items-center gap-4 shrink-0">
                         <Button
                             variant="default"
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs"
                             onClick={() => {
                                 const exportTeam = blindMode
                                     ? { ...(data.team as unknown as Record<string, unknown>), name: 'Team Redacted (Blind Mode)' }
@@ -121,11 +118,11 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
                             <Download className="w-4 h-4 mr-2" />
                             Export PDF
                         </Button>
-                        <div className="flex flex-col items-center bg-primary/10 border border-primary/30 px-5 py-2.5 rounded-xl">
-                            <span className="text-[10px] text-primary font-bold uppercase tracking-wider">Repository Score</span>
-                            <span className="text-3xl font-extrabold text-white">
+                        <div className="flex flex-col items-center bg-white border border-slate-200 px-5 py-2.5 rounded-2xl shadow-xs">
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Repository Score</span>
+                            <span className="text-3xl font-black text-slate-900">
                                 {repoScore}
-                                <span className="text-xs text-neutral-500 font-normal"> / 100</span>
+                                <span className="text-xs text-slate-400 font-normal"> / 100</span>
                             </span>
                         </div>
                     </div>
@@ -133,42 +130,42 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
 
                 {/* 100-Point Rubric Score Breakdown */}
                 {gh?.breakdown && (
-                    <Card className="border-indigo-500/30 bg-neutral-900/60 backdrop-blur-md">
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-base font-bold flex items-center gap-2 text-white">
-                                <Target className="w-4 h-4 text-indigo-400" /> 100-Point Technical Rubric Breakdown
+                    <Card className="border border-slate-200/80 bg-white shadow-xs rounded-2xl overflow-hidden">
+                        <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+                            <CardTitle className="text-base font-bold flex items-center gap-2 text-slate-900">
+                                <Target className="w-4 h-4 text-indigo-600" /> 100-Point Technical Rubric Breakdown
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-4">
                             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                                <div className="bg-neutral-950/70 p-3 rounded-lg border border-neutral-800 text-center">
-                                    <span className="text-[11px] text-neutral-400 block truncate">Code Quality</span>
-                                    <span className="font-bold text-white text-lg block mt-0.5">
-                                        {gh.breakdown.codeQualityMaintainability ?? gh.breakdown.codeQuality} <span className="text-xs text-neutral-500 font-normal">/ 25</span>
+                                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 text-center">
+                                    <span className="text-[11px] text-slate-500 font-semibold block truncate">Code Quality</span>
+                                    <span className="font-black text-slate-900 text-lg block mt-0.5">
+                                        {gh.breakdown.codeQualityMaintainability ?? gh.breakdown.codeQuality} <span className="text-xs text-slate-400 font-normal">/ 25</span>
                                     </span>
                                 </div>
-                                <div className="bg-neutral-950/70 p-3 rounded-lg border border-neutral-800 text-center">
-                                    <span className="text-[11px] text-neutral-400 block truncate">Implementation</span>
-                                    <span className="font-bold text-white text-lg block mt-0.5">
-                                        {gh.breakdown.technicalImplementation} <span className="text-xs text-neutral-500 font-normal">/ 25</span>
+                                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 text-center">
+                                    <span className="text-[11px] text-slate-500 font-semibold block truncate">Implementation</span>
+                                    <span className="font-black text-slate-900 text-lg block mt-0.5">
+                                        {gh.breakdown.technicalImplementation} <span className="text-xs text-slate-400 font-normal">/ 25</span>
                                     </span>
                                 </div>
-                                <div className="bg-neutral-950/70 p-3 rounded-lg border border-neutral-800 text-center">
-                                    <span className="text-[11px] text-neutral-400 block truncate">Architecture</span>
-                                    <span className="font-bold text-white text-lg block mt-0.5">
-                                        {gh.breakdown.architectureProjectStructure ?? gh.breakdown.architecture} <span className="text-xs text-neutral-500 font-normal">/ 20</span>
+                                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 text-center">
+                                    <span className="text-[11px] text-slate-500 font-semibold block truncate">Architecture</span>
+                                    <span className="font-black text-slate-900 text-lg block mt-0.5">
+                                        {gh.breakdown.architectureProjectStructure ?? gh.breakdown.architecture} <span className="text-xs text-slate-400 font-normal">/ 20</span>
                                     </span>
                                 </div>
-                                <div className="bg-neutral-950/70 p-3 rounded-lg border border-neutral-800 text-center">
-                                    <span className="text-[11px] text-neutral-400 block truncate">Testing & Errors</span>
-                                    <span className="font-bold text-white text-lg block mt-0.5">
-                                        {gh.breakdown.testingErrorHandling ?? gh.breakdown.documentationAndTesting} <span className="text-xs text-neutral-500 font-normal">/ 15</span>
+                                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 text-center">
+                                    <span className="text-[11px] text-slate-500 font-semibold block truncate">Testing &amp; Errors</span>
+                                    <span className="font-black text-slate-900 text-lg block mt-0.5">
+                                        {gh.breakdown.testingErrorHandling ?? gh.breakdown.documentationAndTesting} <span className="text-xs text-slate-400 font-normal">/ 15</span>
                                     </span>
                                 </div>
-                                <div className="bg-neutral-950/70 p-3 rounded-lg border border-neutral-800 text-center">
-                                    <span className="text-[11px] text-neutral-400 block truncate">Documentation & Git</span>
-                                    <span className="font-bold text-white text-lg block mt-0.5">
-                                        {gh.breakdown.documentationDevPractices ?? gh.breakdown.developmentActivity} <span className="text-xs text-neutral-500 font-normal">/ 15</span>
+                                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 text-center">
+                                    <span className="text-[11px] text-slate-500 font-semibold block truncate">Docs &amp; Git</span>
+                                    <span className="font-black text-slate-900 text-lg block mt-0.5">
+                                        {gh.breakdown.documentationDevPractices ?? gh.breakdown.developmentActivity} <span className="text-xs text-slate-400 font-normal">/ 15</span>
                                     </span>
                                 </div>
                             </div>
@@ -178,14 +175,14 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
 
                 {/* AI Executive Summary Card */}
                 {gh?.summary && (
-                    <Card className="border-primary/20 bg-background/60 backdrop-blur-md">
-                        <CardHeader className="pb-3">
-                            <CardTitle className="flex items-center gap-2 text-base text-white">
-                                <Brain className="w-4 h-4 text-primary" /> Technical Executive Summary
+                    <Card className="border border-slate-200/80 bg-white shadow-xs rounded-2xl overflow-hidden">
+                        <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+                            <CardTitle className="flex items-center gap-2 text-base text-slate-900 font-bold">
+                                <Brain className="w-4 h-4 text-indigo-600" /> Technical Executive Summary
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <p className="leading-relaxed text-neutral-300 text-sm">
+                        <CardContent className="pt-4">
+                            <p className="leading-relaxed text-slate-700 text-sm">
                                 {gh.summary}
                             </p>
                         </CardContent>
@@ -195,44 +192,44 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
                 {/* Detailed Observations Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {(gh?.architectureObservations || gh?.architectureAssessment) && (
-                        <Card className="border-neutral-800 bg-neutral-900/40 p-4 space-y-1.5">
-                            <h4 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
-                                <Layers className="w-3.5 h-3.5" /> Architecture & Project Modularity
+                        <Card className="border border-slate-200/80 bg-white shadow-xs rounded-2xl p-5 space-y-2">
+                            <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <Layers className="w-3.5 h-3.5 text-indigo-600" /> Architecture &amp; Project Modularity
                             </h4>
-                            <p className="text-xs text-neutral-300 leading-relaxed">
+                            <p className="text-xs text-slate-600 leading-relaxed">
                                 {gh.architectureObservations || gh.architectureAssessment}
                             </p>
                         </Card>
                     )}
 
                     {(gh?.codeQualityObservations || gh?.codeQualityAssessment) && (
-                        <Card className="border-neutral-800 bg-neutral-900/40 p-4 space-y-1.5">
-                            <h4 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
-                                <Code2 className="w-3.5 h-3.5" /> Code Quality & Maintainability
+                        <Card className="border border-slate-200/80 bg-white shadow-xs rounded-2xl p-5 space-y-2">
+                            <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <Code2 className="w-3.5 h-3.5 text-indigo-600" /> Code Quality &amp; Maintainability
                             </h4>
-                            <p className="text-xs text-neutral-300 leading-relaxed">
+                            <p className="text-xs text-slate-600 leading-relaxed">
                                 {gh.codeQualityObservations || gh.codeQualityAssessment}
                             </p>
                         </Card>
                     )}
 
                     {(gh?.testingObservations || gh?.testingAssessment) && (
-                        <Card className="border-neutral-800 bg-neutral-900/40 p-4 space-y-1.5">
-                            <h4 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
-                                <Activity className="w-3.5 h-3.5" /> Testing & Error Handling Evidence
+                        <Card className="border border-slate-200/80 bg-white shadow-xs rounded-2xl p-5 space-y-2">
+                            <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <Activity className="w-3.5 h-3.5 text-indigo-600" /> Testing &amp; Error Handling Evidence
                             </h4>
-                            <p className="text-xs text-neutral-300 leading-relaxed">
+                            <p className="text-xs text-slate-600 leading-relaxed">
                                 {gh.testingObservations || gh.testingAssessment}
                             </p>
                         </Card>
                     )}
 
                     {gh?.securityObservations && (
-                        <Card className="border-neutral-800 bg-neutral-900/40 p-4 space-y-1.5">
-                            <h4 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
-                                <ShieldCheck className="w-3.5 h-3.5" /> Security & Static Safety
+                        <Card className="border border-slate-200/80 bg-white shadow-xs rounded-2xl p-5 space-y-2">
+                            <h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <ShieldCheck className="w-3.5 h-3.5 text-amber-600" /> Security &amp; Static Safety
                             </h4>
-                            <p className="text-xs text-neutral-300 leading-relaxed">
+                            <p className="text-xs text-slate-600 leading-relaxed">
                                 {gh.securityObservations}
                             </p>
                         </Card>
@@ -242,14 +239,14 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
                 {/* Strengths & Weaknesses */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {gh?.strengths && gh.strengths.length > 0 && (
-                        <Card className="border-emerald-500/20 bg-emerald-950/10 p-5 space-y-2">
-                            <h4 className="text-xs font-bold text-emerald-400 uppercase flex items-center gap-1.5">
-                                <CheckCircle2 className="w-4 h-4" /> Technical Strengths
+                        <Card className="border border-emerald-200 bg-emerald-50/70 shadow-xs rounded-2xl p-5 space-y-2">
+                            <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Technical Strengths
                             </h4>
                             <ul className="space-y-1.5">
                                 {gh.strengths.map((str, i) => (
-                                    <li key={i} className="text-xs text-neutral-300 flex items-start gap-2">
-                                        <span className="text-emerald-400">•</span> {str}
+                                    <li key={i} className="text-xs text-emerald-950 flex items-start gap-2">
+                                        <span className="text-emerald-600 font-bold">•</span> {str}
                                     </li>
                                 ))}
                             </ul>
@@ -257,14 +254,14 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
                     )}
 
                     {gh?.weaknesses && gh.weaknesses.length > 0 && (
-                        <Card className="border-red-500/20 bg-red-950/10 p-5 space-y-2">
-                            <h4 className="text-xs font-bold text-red-400 uppercase flex items-center gap-1.5">
-                                <AlertTriangle className="w-4 h-4" /> Technical Weaknesses & Gaps
+                        <Card className="border border-rose-200 bg-rose-50/70 shadow-xs rounded-2xl p-5 space-y-2">
+                            <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
+                                <AlertTriangle className="w-4 h-4 text-rose-600" /> Technical Weaknesses &amp; Gaps
                             </h4>
                             <ul className="space-y-1.5">
                                 {gh.weaknesses.map((w, i) => (
-                                    <li key={i} className="text-xs text-neutral-300 flex items-start gap-2">
-                                        <span className="text-red-400">•</span> {w}
+                                    <li key={i} className="text-xs text-rose-950 flex items-start gap-2">
+                                        <span className="text-rose-600 font-bold">•</span> {w}
                                     </li>
                                 ))}
                             </ul>
@@ -274,14 +271,14 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
 
                 {/* Improvement Recommendations */}
                 {gh?.improvementRecommendations && gh.improvementRecommendations.length > 0 && (
-                    <Card className="border-indigo-500/20 bg-indigo-950/10 p-5 space-y-2">
-                        <h4 className="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5">
-                            <Wrench className="w-4 h-4 text-indigo-400" /> Actionable Recommendations
+                    <Card className="border border-indigo-200 bg-indigo-50/60 shadow-xs rounded-2xl p-5 space-y-2">
+                        <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1.5">
+                            <Wrench className="w-4 h-4 text-indigo-600" /> Actionable Recommendations
                         </h4>
                         <ul className="space-y-1.5">
                             {gh.improvementRecommendations.map((rec, i) => (
-                                <li key={i} className="text-xs text-neutral-300 flex items-start gap-2">
-                                    <span className="text-indigo-400">→</span> {rec}
+                                <li key={i} className="text-xs text-indigo-950 flex items-start gap-2">
+                                    <span className="text-indigo-600 font-bold">→</span> {rec}
                                 </li>
                             ))}
                         </ul>
@@ -290,13 +287,13 @@ export default function SubmissionDetail({ params }: { params: Promise<{ id: str
 
                 {/* Transparent Files Inspected */}
                 {gh?.filesInspected && gh.filesInspected.length > 0 && (
-                    <div className="bg-neutral-950/60 border border-neutral-800 p-4 rounded-xl text-xs space-y-2">
-                        <span className="text-xs font-semibold text-neutral-400 block">
+                    <div className="bg-white border border-slate-200/80 p-4 rounded-2xl text-xs space-y-2 shadow-xs">
+                        <span className="text-xs font-bold text-slate-700 block">
                             Files Inspected during Static Code Audit ({gh.filesInspected.length})
                         </span>
                         <div className="flex flex-wrap gap-1.5">
                             {gh.filesInspected.map((file, i) => (
-                                <span key={i} className="px-2 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-[10px] font-mono text-neutral-300">
+                                <span key={i} className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-[11px] font-mono text-slate-700">
                                     {file}
                                 </span>
                             ))}

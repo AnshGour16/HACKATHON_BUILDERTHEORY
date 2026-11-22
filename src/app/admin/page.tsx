@@ -105,7 +105,7 @@ export default function AdminDashboard() {
     const [sortBy, setSortBy] = useState<'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST' | 'FINAL_RANK'>('SCORE_DESC');
     const [shortlistStatusFilter, setShortlistStatusFilter] = useState<'ALL' | 'EVALUATED' | 'PENDING' | 'SHORTLISTED' | 'NOT_SHORTLISTED' | 'FINAL_RANKING'>('ALL');
 
-    // Organizer Legacy Shortlisting Controls State
+    // Organizer Shortlisting Controls State
     const [showShortlistPanel, setShowShortlistPanel] = useState(false);
     const [shortlistMode, setShortlistMode] = useState<'OVERALL' | 'THEME_WISE'>('OVERALL');
     const [shortlistLimit, setShortlistLimit] = useState<number>(25);
@@ -148,12 +148,12 @@ export default function AdminDashboard() {
 
     const fetchSettings = useCallback(async (hId: string = selectedHackathonId) => {
         try {
-            const url = hId !== 'ALL' ? `/api/settings?hackathonId=${hId}` : '/api/settings';
-            const res = await fetch(url);
+            const queryParam = hId !== 'ALL' ? `?hackathonId=${hId}` : '';
+            const res = await fetch(`/api/settings${queryParam}`);
             const data = await res.json();
             if (data.success) {
-                setIsCodeSubmissionOpen(Boolean(data.isCodeSubmissionOpen));
-                setBlindJudgingEnabled(Boolean(data.blindJudgingEnabled));
+                setIsCodeSubmissionOpen(data.isCodeSubmissionOpen);
+                setBlindJudgingEnabled(data.blindJudgingEnabled);
             }
         } catch (error) {
             console.error('Failed to fetch settings:', error);
@@ -163,14 +163,14 @@ export default function AdminDashboard() {
     const fetchSubmissions = useCallback(async (hId: string = selectedHackathonId) => {
         setLoading(true);
         try {
-            const url = hId !== 'ALL' ? `/api/submissions?hackathonId=${hId}` : '/api/submissions';
-            const res = await fetch(url);
+            const queryParam = hId !== 'ALL' ? `?hackathonId=${hId}` : '';
+            const res = await fetch(`/api/submissions${queryParam}`);
             const data = await res.json();
             if (data.success) {
                 setSubmissions(data.data || []);
             }
-        } catch (e) {
-            console.error(e);
+        } catch (error) {
+            console.error('Failed to fetch submissions:', error);
         } finally {
             setLoading(false);
         }
@@ -178,19 +178,16 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         fetchHackathons();
-        fetchSubmissions('ALL');
-        fetchSettings('ALL');
-    }, [fetchSubmissions, fetchSettings]);
+        fetchSettings();
+        fetchSubmissions();
+    }, [fetchSettings, fetchSubmissions]);
 
     const handleHackathonChange = (hId: string) => {
         setSelectedHackathonId(hId);
-        setSelectedTrack('ALL');
-        setPreviewData(null);
-        setShortlistNotification(null);
-        setFinalPreviewData(null);
-        setFinalRankingNotification(null);
-        fetchSubmissions(hId);
         fetchSettings(hId);
+        fetchSubmissions(hId);
+        setPreviewData(null);
+        setFinalPreviewData(null);
     };
 
     const togglePhase = async () => {
@@ -200,22 +197,21 @@ export default function AdminDashboard() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    hackathonId: selectedHackathonId !== 'ALL' ? selectedHackathonId : undefined,
-                    isCodeSubmissionOpen: !isCodeSubmissionOpen
+                    isCodeSubmissionOpen: !isCodeSubmissionOpen,
+                    hackathonId: selectedHackathonId !== 'ALL' ? selectedHackathonId : undefined
                 })
             });
             const data = await res.json();
             if (data.success) {
-                setIsCodeSubmissionOpen(Boolean(data.isCodeSubmissionOpen));
+                setIsCodeSubmissionOpen(data.isCodeSubmissionOpen);
             }
         } catch (error) {
-            console.error('Failed to toggle phase:', error);
+            console.error('Failed to update phase:', error);
         } finally {
             setUpdatingPhase(false);
         }
     };
 
-    // Extract unique tracks
     const uniqueTracks = useMemo(() => {
         const tracks = new Set<string>();
         submissions.forEach((s) => {
@@ -224,29 +220,20 @@ export default function AdminDashboard() {
         return Array.from(tracks);
     }, [submissions]);
 
-    // Current active hackathon object
     const activeHackathon = useMemo(() => {
-        if (selectedHackathonId !== 'ALL') {
-            return hackathons.find(h => h._id === selectedHackathonId) || null;
-        }
-        return hackathons.length > 0 ? hackathons[0] : null;
+        if (selectedHackathonId === 'ALL') return null;
+        return hackathons.find((h) => h._id === selectedHackathonId) || null;
     }, [hackathons, selectedHackathonId]);
 
-    // Synchronize hackathon weights when active hackathon changes
-    useEffect(() => {
-        if (activeHackathon) {
-            setPitchWeight(0);
-            setGithubWeight(100);
-            if (activeHackathon.winnerCount !== undefined) setWinnerCount(activeHackathon.winnerCount);
-        }
-    }, [activeHackathon]);
-
-    // Computed Analytics
+    // Summary Statistics
     const stats = useMemo(() => {
         const total = submissions.length;
         if (total === 0) return {
-            total: 0, highest: 0, topTeam: 'N/A', average: 0, plagiarismCount: 0, persistentShortlistedCount: 0,
-            round2ShortlistedCount: 0, round2SubmittedCount: 0, round2PendingCount: 0, round2EvaluatedCount: 0, round2FailedCount: 0,
+            total: 0, highest: 0, topTeam: 'N/A', average: 0,
+            plagiarismCount: 0, persistentShortlistedCount: 0,
+            round2ShortlistedCount: 0, round2SubmittedCount: 0,
+            round2PendingCount: 0, round2EvaluatedCount: 0,
+            round2FailedCount: 0,
             finalRankedCount: 0, winnersCount: 0
         };
 
@@ -365,10 +352,7 @@ export default function AdminDashboard() {
             });
     }, [submissions, searchQuery, selectedTrack, shortlistStatusFilter, sortBy]);
 
-    // ==========================================
-    // BACKEND SHORTLISTING ACTIONS
-    // ==========================================
-
+    // Shortlisting Actions
     const handlePreviewShortlist = async () => {
         if (!activeHackathon) {
             setShortlistNotification({ type: 'error', message: 'Please select a specific hackathon to configure shortlisting.' });
@@ -471,10 +455,7 @@ export default function AdminDashboard() {
         }
     };
 
-    // ==========================================
-    // PHASE 6: FINAL COMPOSITE RANKING ACTIONS
-    // ==========================================
-
+    // Final Composite Ranking Actions
     const handlePreviewFinalRankings = async () => {
         if (!activeHackathon) {
             setFinalRankingNotification({ type: 'error', message: 'Please select a specific hackathon to configure final rankings.' });
@@ -583,7 +564,7 @@ export default function AdminDashboard() {
             if (res.ok && data.success) {
                 setFinalRankingNotification({
                     type: 'success',
-                    message: `🎉 Official Final Results & Top ${data.data.winnerCount} Winners Published! Participants can now view their official rank & badges.`
+                    message: `Official Final Results & Top ${data.data.winnerCount} Winners Published! Participants can now view their official rank & badges.`
                 });
                 setShowPublishModal(false);
                 fetchSubmissions(selectedHackathonId);
@@ -635,29 +616,27 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className="min-h-screen p-6 md:p-10 relative">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
-
-            <div className="max-w-6xl mx-auto space-y-8 relative z-10">
+        <div className="min-h-screen bg-slate-50 text-slate-900 p-6 md:p-10">
+            <div className="max-w-6xl mx-auto space-y-8">
                 {/* Header & Controls */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-2">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-xs font-semibold text-indigo-700 mb-2">
                             <Sparkles className="w-3.5 h-3.5" />
                             AI Repository Checker & Leaderboard
                         </div>
-                        <h1 className="text-3xl font-bold tracking-tight text-white">Repository Evaluation Leaderboard</h1>
-                        <p className="text-neutral-400 text-sm mt-1">Automated code quality audit, system architecture evaluation, and deterministic rankings.</p>
+                        <h1 className="text-3xl font-black tracking-tight text-slate-900">Repository Evaluation Leaderboard</h1>
+                        <p className="text-slate-500 text-sm mt-1">Automated code quality audit, system architecture evaluation, and deterministic rankings.</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                         {/* Hackathon Filter Dropdown */}
-                        <div className="flex items-center gap-2 bg-neutral-900/60 p-2 rounded-xl border border-neutral-800">
-                            <Trophy className="w-4 h-4 text-primary ml-1 shrink-0" />
+                        <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-xs">
+                            <Trophy className="w-4 h-4 text-indigo-600 ml-1 shrink-0" />
                             <select
                                 value={selectedHackathonId}
                                 onChange={(e) => handleHackathonChange(e.target.value)}
-                                className="h-8 px-2 text-xs bg-neutral-950 border border-neutral-700 rounded-md text-white font-medium focus:outline-none focus:ring-1 focus:ring-primary max-w-[180px] truncate"
+                                className="h-8 px-2 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-900 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 max-w-[180px] truncate"
                             >
                                 <option value="ALL">All Hackathons</option>
                                 {hackathons.map((h) => (
@@ -666,47 +645,49 @@ export default function AdminDashboard() {
                             </select>
                         </div>
 
-                        <div className="flex items-center gap-3 bg-neutral-900/60 p-2.5 px-4 rounded-xl border border-neutral-800 backdrop-blur-sm">
+                        {/* Phase 2 Code Submission Toggle */}
+                        <div className="flex items-center gap-3 bg-white p-2 px-4 rounded-xl border border-slate-200 shadow-xs">
                             <div className="text-left">
-                                <div className="text-xs font-medium text-white">Phase 2 Code Submission</div>
-                                <div className={`text-[11px] font-semibold ${isCodeSubmissionOpen ? 'text-emerald-400' : 'text-neutral-400'}`}>
+                                <div className="text-xs font-bold text-slate-900">Phase 2 Code Submission</div>
+                                <div className={`text-[11px] font-semibold ${isCodeSubmissionOpen ? 'text-emerald-600' : 'text-slate-400'}`}>
                                     {isCodeSubmissionOpen ? '● Portal Unlocked' : '○ Locked'}
                                 </div>
                             </div>
                             <button
                                 onClick={togglePhase}
                                 disabled={updatingPhase}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-primary ${isCodeSubmissionOpen ? 'bg-primary' : 'bg-neutral-700'}`}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-indigo-500 ${isCodeSubmissionOpen ? 'bg-emerald-600' : 'bg-slate-300'}`}
                             >
-                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCodeSubmissionOpen ? 'translate-x-6' : 'translate-x-1'}`} />
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${isCodeSubmissionOpen ? 'translate-x-6' : 'translate-x-1'}`} />
                             </button>
                         </div>
 
+                        {/* Action Buttons */}
                         <div className="flex flex-wrap gap-2">
-                            <Button asChild variant="outline" size="sm" className="text-primary border-primary/40 bg-primary/10 hover:bg-primary/20">
+                            <Button asChild variant="outline" size="sm" className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs text-xs font-semibold">
                                 <Link href="/admin/hackathons">
-                                    <Trophy className="h-4 w-4 mr-1.5" /> Event Settings & Themes
+                                    <Trophy className="h-4 w-4 mr-1.5 text-indigo-600" /> Event Settings
                                 </Link>
                             </Button>
-                            <Button asChild variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
+                            <Button asChild variant="outline" size="sm" className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs text-xs font-semibold">
                                 <a
                                     href={`/api/export?${shortlistStatusFilter === 'SHORTLISTED' ? 'shortlistedOnly=true&' : ''}${selectedHackathonId !== 'ALL' ? `hackathonId=${selectedHackathonId}&` : ''}${selectedTrack !== 'ALL' ? `track=${selectedTrack}` : ''}`}
                                     download={shortlistStatusFilter === 'SHORTLISTED' ? 'shortlisted_teams.csv' : 'hackathon_leaderboard.csv'}
                                 >
                                     <Download className="h-4 w-4 mr-1.5" />
-                                    {shortlistStatusFilter === 'SHORTLISTED' ? 'Export Shortlisted CSV' : 'Export CSV'}
+                                    {shortlistStatusFilter === 'SHORTLISTED' ? 'Export Shortlisted' : 'Export CSV'}
                                 </a>
                             </Button>
-                            <Button asChild variant="outline" size="sm" className="text-amber-300 border-amber-800/80 bg-amber-950/30 hover:bg-amber-900/40">
+                            <Button asChild variant="outline" size="sm" className="bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100 shadow-xs text-xs font-semibold">
                                 <a
                                     href={`/api/export?finalRanking=true${selectedHackathonId !== 'ALL' ? `&hackathonId=${selectedHackathonId}` : ''}${selectedTrack !== 'ALL' ? `&track=${selectedTrack}` : ''}`}
                                     download="hackathon_final_leaderboard.csv"
                                 >
-                                    <Crown className="h-4 w-4 mr-1.5 text-amber-400" />
+                                    <Crown className="h-4 w-4 mr-1.5 text-amber-600" />
                                     Export Final Rankings
                                 </a>
                             </Button>
-                            <Button onClick={() => fetchSubmissions(selectedHackathonId)} variant="outline" size="sm" className="text-neutral-300 border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800">
+                            <Button onClick={() => fetchSubmissions(selectedHackathonId)} variant="outline" size="sm" className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs">
                                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                             </Button>
                         </div>
@@ -715,61 +696,61 @@ export default function AdminDashboard() {
 
                 {/* Stat Overview Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card className="bg-neutral-900/40 border-neutral-800/80 backdrop-blur-sm">
+                    <Card className="bg-white border border-slate-200/80 shadow-xs hover:shadow-sm transition-all rounded-2xl">
                         <CardContent className="p-4 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                            <div className="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
                                 <Users className="w-5 h-5" />
                             </div>
                             <div>
-                                <span className="text-xs text-neutral-400 font-medium">Total Teams</span>
-                                <h3 className="text-xl font-bold text-white">{stats.total}</h3>
+                                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Total Teams</span>
+                                <h3 className="text-2xl font-black text-slate-900 mt-0.5">{stats.total}</h3>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-neutral-900/40 border-neutral-800/80 backdrop-blur-sm">
+                    <Card className="bg-white border border-slate-200/80 shadow-xs hover:shadow-sm transition-all rounded-2xl">
                         <CardContent className="p-4 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                            <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
                                 <Github className="w-5 h-5" />
                             </div>
                             <div>
-                                <span className="text-xs text-neutral-400 font-medium">Codebases Evaluated</span>
-                                <h3 className="text-xl font-bold text-white">
-                                    {stats.round2EvaluatedCount} <span className="text-xs font-normal text-emerald-400">Repositories</span>
+                                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Codebases Evaluated</span>
+                                <h3 className="text-2xl font-black text-slate-900 mt-0.5">
+                                    {stats.round2EvaluatedCount} <span className="text-xs font-semibold text-emerald-600">Repositories</span>
                                 </h3>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-neutral-900/40 border-neutral-800/80 backdrop-blur-sm">
+                    <Card className="bg-white border border-slate-200/80 shadow-xs hover:shadow-sm transition-all rounded-2xl">
                         <CardContent className="p-4 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
                                 <BarChart2 className="w-5 h-5" />
                             </div>
                             <div>
-                                <span className="text-xs text-neutral-400 font-medium">Leaderboard Ranked</span>
-                                <h3 className="text-xl font-bold text-white">
-                                    {stats.finalRankedCount} <span className="text-xs font-normal text-indigo-300">Teams</span>
+                                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Leaderboard Ranked</span>
+                                <h3 className="text-2xl font-black text-slate-900 mt-0.5">
+                                    {stats.finalRankedCount} <span className="text-xs font-semibold text-blue-600">Teams</span>
                                 </h3>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-neutral-900/40 border-neutral-800/80 backdrop-blur-sm">
+                    <Card className="bg-white border border-slate-200/80 shadow-xs hover:shadow-sm transition-all rounded-2xl">
                         <CardContent className="p-4 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                            <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0">
                                 <Crown className="w-5 h-5" />
                             </div>
                             <div>
-                                <span className="text-xs text-neutral-400 font-medium">Official Winners</span>
-                                <h3 className="text-xl font-bold text-white">
+                                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Official Winners</span>
+                                <h3 className="text-2xl font-black text-slate-900 mt-0.5">
                                     {activeHackathon?.isFinalResultsPublished ? (
                                         <>
                                             {stats.winnersCount || activeHackathon.winnerCount || 3}{' '}
-                                            <span className="text-xs font-semibold text-emerald-400">Published</span>
+                                            <span className="text-xs font-bold text-emerald-600">Published</span>
                                         </>
                                     ) : (
-                                        <span className="text-sm font-semibold text-amber-300">Draft / Review</span>
+                                        <span className="text-sm font-bold text-amber-600">Draft / Review</span>
                                     )}
                                 </h3>
                             </div>
@@ -777,28 +758,28 @@ export default function AdminDashboard() {
                     </Card>
                 </div>
 
-                {/* --- ORGANIZER SHORTLISTING CONTROL CENTER --- */}
-                <Card className="border-emerald-500/30 bg-neutral-950/70 backdrop-blur-md shadow-xl overflow-hidden">
-                    <CardHeader className="py-4 border-b border-neutral-800/60 flex flex-row items-center justify-between cursor-pointer" onClick={() => setShowShortlistPanel(!showShortlistPanel)}>
+                {/* Shortlisting Engine Panel */}
+                <Card className="border border-slate-200/80 bg-white shadow-xs rounded-2xl overflow-hidden">
+                    <CardHeader className="py-4 px-6 border-b border-slate-100 flex flex-row items-center justify-between cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-colors" onClick={() => setShowShortlistPanel(!showShortlistPanel)}>
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
                                 <Trophy className="w-4 h-4" />
                             </div>
                             <div>
-                                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                                <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                                     Round 2 Automatic Shortlisting Engine
                                     {activeHackathon?.shortlistingStatus === 'SHORTLISTED' && (
-                                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-semibold">
+                                        <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">
                                             ● Shortlist Saved in MongoDB ({activeHackathon.shortlistCount} Teams)
                                         </Badge>
                                     )}
                                 </CardTitle>
-                                <CardDescription className="text-xs text-neutral-400">
-                                    Automatically sort eligible evaluated presentations, select Top N or theme-wise quotas, and persist qualification status directly into MongoDB.
+                                <CardDescription className="text-xs text-slate-500">
+                                    Sort eligible evaluated teams, select Top N or theme-wise quotas, and persist qualification status directly into MongoDB.
                                 </CardDescription>
                             </div>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-neutral-400">
+                        <Button variant="ghost" size="sm" className="text-slate-400">
                             {showShortlistPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </Button>
                     </CardHeader>
@@ -807,8 +788,8 @@ export default function AdminDashboard() {
                         <CardContent className="p-6 space-y-6">
                             {/* Notification Banner */}
                             {shortlistNotification && (
-                                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 border ${shortlistNotification.type === 'success' ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-red-950/40 border-red-500/40 text-red-300'}`}>
-                                    {shortlistNotification.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />}
+                                <div className={`p-3 rounded-xl text-sm flex items-center gap-2 border ${shortlistNotification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`}>
+                                    {shortlistNotification.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" /> : <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />}
                                     <span>{shortlistNotification.message}</span>
                                 </div>
                             )}
@@ -816,19 +797,19 @@ export default function AdminDashboard() {
                             {/* Mode Selection Tabs */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-3">
-                                    <label className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">Shortlisting Mode</label>
-                                    <div className="grid grid-cols-2 gap-2 bg-neutral-900 p-1 rounded-xl border border-neutral-800">
+                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Shortlisting Mode</label>
+                                    <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
                                         <button
                                             type="button"
                                             onClick={() => { setShortlistMode('OVERALL'); setPreviewData(null); }}
-                                            className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${shortlistMode === 'OVERALL' ? 'bg-primary text-black font-bold shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                                            className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${shortlistMode === 'OVERALL' ? 'bg-white text-slate-900 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
                                         >
                                             <Trophy className="w-3.5 h-3.5" /> Overall Ranking
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => { setShortlistMode('THEME_WISE'); setPreviewData(null); }}
-                                            className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${shortlistMode === 'THEME_WISE' ? 'bg-primary text-black font-bold shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                                            className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${shortlistMode === 'THEME_WISE' ? 'bg-white text-slate-900 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
                                         >
                                             <Sliders className="w-3.5 h-3.5" /> Theme-Wise Quotas
                                         </button>
@@ -837,38 +818,38 @@ export default function AdminDashboard() {
 
                                 {shortlistMode === 'OVERALL' ? (
                                     <div className="space-y-3">
-                                        <label className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">Target Team Count</label>
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Target Team Count</label>
                                         <div className="flex flex-wrap items-center gap-2">
                                             {[10, 25, 30].map(n => (
                                                 <button
                                                     key={n}
                                                     type="button"
                                                     onClick={() => { setShortlistLimit(n); setPreviewData(null); }}
-                                                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${shortlistLimit === n ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/60 font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'}`}
+                                                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${shortlistLimit === n ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                                                 >
                                                     Top {n}
                                                 </button>
                                             ))}
-                                            <div className="flex items-center gap-2 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
-                                                <span className="text-xs text-neutral-400">Custom N:</span>
+                                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-lg border border-slate-200">
+                                                <span className="text-xs text-slate-500">Custom N:</span>
                                                 <Input
                                                     type="number"
                                                     min={1}
                                                     max={500}
                                                     value={shortlistLimit}
                                                     onChange={(e) => { setShortlistLimit(Math.max(1, parseInt(e.target.value, 10) || 1)); setPreviewData(null); }}
-                                                    className="w-16 h-7 text-xs bg-neutral-950 border-neutral-700 text-white font-bold text-center"
+                                                    className="w-16 h-7 text-xs bg-white border-slate-200 text-slate-900 font-bold text-center"
                                                 />
                                             </div>
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
-                                        <label className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">Per-Theme Quotas</label>
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Per-Theme Quotas</label>
                                         <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
                                             {uniqueTracks.map((t, idx) => (
-                                                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-xs">
-                                                    <span className="truncate max-w-[120px] font-medium text-neutral-300">{t}</span>
+                                                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+                                                    <span className="truncate max-w-[120px] font-medium text-slate-800">{t}</span>
                                                     <Input
                                                         type="number"
                                                         min={0}
@@ -880,7 +861,7 @@ export default function AdminDashboard() {
                                                             setThemeQuotas(prev => ({ ...prev, [t]: val }));
                                                             setPreviewData(null);
                                                         }}
-                                                        className="w-14 h-6 text-xs bg-neutral-950 border-neutral-700 text-white text-center font-bold"
+                                                        className="w-14 h-6 text-xs bg-white border-slate-200 text-slate-900 text-center font-bold"
                                                     />
                                                 </div>
                                             ))}
@@ -890,12 +871,12 @@ export default function AdminDashboard() {
                             </div>
 
                             {/* Shortlist Action Controls */}
-                            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-neutral-800/60">
-                                <div className="text-xs text-neutral-400">
-                                    Event in Scope: <span className="text-white font-semibold">{activeHackathon ? activeHackathon.name : 'All Events'}</span>
+                            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                                <div className="text-xs text-slate-500">
+                                    Event in Scope: <span className="text-slate-900 font-bold">{activeHackathon ? activeHackathon.name : 'All Events'}</span>
                                     {activeHackathon?.shortlistedAt && (
-                                        <span className="text-emerald-400 ml-2">
-                                            (Last shortlisted on {new Date(activeHackathon.shortlistedAt).toLocaleString()})
+                                        <span className="text-emerald-700 ml-2 font-medium">
+                                            (Last shortlisted: {new Date(activeHackathon.shortlistedAt).toLocaleDateString()})
                                         </span>
                                     )}
                                 </div>
@@ -906,9 +887,9 @@ export default function AdminDashboard() {
                                         size="sm"
                                         disabled={isPreviewing || isApplyingShortlist}
                                         onClick={handlePreviewShortlist}
-                                        className="border-neutral-700 bg-neutral-900 hover:bg-neutral-800 text-white text-xs"
+                                        className="border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs"
                                     >
-                                        {isPreviewing ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <EyeIcon className="w-3.5 h-3.5 mr-1.5" />}
+                                        {isPreviewing ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Eye className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />}
                                         Preview Qualifying Teams
                                     </Button>
                                     <Button
@@ -916,7 +897,7 @@ export default function AdminDashboard() {
                                         size="sm"
                                         disabled={isApplyingShortlist}
                                         onClick={handleApplyShortlist}
-                                        className="bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs shadow-lg shadow-emerald-500/20"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
                                     >
                                         {isApplyingShortlist ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Trophy className="w-3.5 h-3.5 mr-1.5" />}
                                         Confirm & Persist to Database
@@ -926,42 +907,42 @@ export default function AdminDashboard() {
 
                             {/* Shortlist Preview Drawer */}
                             {previewData && (
-                                <div className="p-4 rounded-xl bg-neutral-900/90 border border-emerald-500/40 space-y-4 animate-in fade-in">
-                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+                                <div className="p-4 rounded-xl bg-slate-50 border border-emerald-300 space-y-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
                                         <div className="flex items-center gap-3">
-                                            <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40">
+                                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold">
                                                 Preview: Top {previewData.qualifyingCount} Teams
                                             </Badge>
-                                            <span className="text-xs text-neutral-400">
-                                                Total Evaluated Candidates: <strong className="text-white">{previewData.totalEligible}</strong>
+                                            <span className="text-xs text-slate-600">
+                                                Total Evaluated Candidates: <strong className="text-slate-900">{previewData.totalEligible}</strong>
                                             </span>
-                                            <span className="text-xs text-neutral-400">
-                                                Cutoff Score: <strong className="text-emerald-400">{previewData.cutoffScore}/100</strong>
+                                            <span className="text-xs text-slate-600">
+                                                Cutoff Score: <strong className="text-emerald-700">{previewData.cutoffScore}/100</strong>
                                             </span>
                                         </div>
                                         <Button
                                             size="sm"
                                             onClick={handleApplyShortlist}
                                             disabled={isApplyingShortlist}
-                                            className="bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs h-7"
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-7 shadow-xs"
                                         >
                                             {isApplyingShortlist ? 'Saving to Database...' : 'Save this Shortlist in MongoDB'}
                                         </Button>
                                     </div>
 
-                                    <div className="max-h-60 overflow-y-auto space-y-1 pr-1 text-xs">
+                                    <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1 text-xs">
                                         {previewData.qualifyingTeams.map((qt) => (
-                                            <div key={qt.teamId} className="flex items-center justify-between p-2 rounded-lg bg-neutral-950/70 border border-neutral-800/80">
+                                            <div key={qt.teamId} className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 shadow-xs">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold text-[11px]">
+                                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">
                                                         {qt.rank}
                                                     </span>
-                                                    <span className="font-semibold text-white">{qt.teamName}</span>
-                                                    <Badge variant="outline" className="text-[10px] py-0 border-indigo-500/40 text-indigo-400">
+                                                    <span className="font-bold text-slate-900">{qt.teamName}</span>
+                                                    <Badge variant="outline" className="text-[10px] py-0 border-indigo-200 text-indigo-700 bg-indigo-50">
                                                         {qt.track}
                                                     </Badge>
                                                 </div>
-                                                <span className="font-extrabold text-emerald-400 text-sm">{qt.score}/100</span>
+                                                <span className="font-extrabold text-emerald-700 text-sm">{qt.score}/100</span>
                                             </div>
                                         ))}
                                     </div>
@@ -971,24 +952,24 @@ export default function AdminDashboard() {
                     )}
                 </Card>
 
-                {/* --- ROUND 2 CODEBASE EVALUATION MANAGEMENT CENTER --- */}
-                <Card className="border-indigo-500/30 bg-neutral-950/70 backdrop-blur-md shadow-xl overflow-hidden">
+                {/* Round 2 Codebase Evaluation Management Center */}
+                <Card className="border border-slate-200/80 bg-white shadow-xs rounded-2xl overflow-hidden">
                     <CardHeader
-                        className="py-4 border-b border-neutral-800/60 flex flex-row items-center justify-between cursor-pointer"
+                        className="py-4 px-6 border-b border-slate-100 flex flex-row items-center justify-between cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-colors"
                         onClick={() => setShowRound2Panel(!showRound2Panel)}
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700">
                                 <Github className="w-4 h-4" />
                             </div>
                             <div>
-                                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                                <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                                     Round 2 Codebase Evaluation Center
-                                    <Badge className={isCodeSubmissionOpen ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px]" : "bg-neutral-800 text-neutral-400 border-neutral-700 text-[10px]"}>
+                                    <Badge className={isCodeSubmissionOpen ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold" : "bg-slate-100 text-slate-600 border-slate-200 text-[10px]"}>
                                         {isCodeSubmissionOpen ? "● Code Portal Unlocked" : "○ Code Portal Locked"}
                                     </Badge>
                                 </CardTitle>
-                                <CardDescription className="text-xs text-neutral-400">
+                                <CardDescription className="text-xs text-slate-500">
                                     Monitor GitHub submissions from shortlisted teams, review automated AI technical audits, and retry failed evaluations.
                                 </CardDescription>
                             </div>
@@ -1002,12 +983,12 @@ export default function AdminDashboard() {
                                     togglePhase();
                                 }}
                                 disabled={updatingPhase}
-                                className={`text-xs h-7 border ${isCodeSubmissionOpen ? 'border-amber-500/40 text-amber-300 hover:bg-amber-950/30' : 'border-indigo-500/40 text-indigo-300 hover:bg-indigo-950/30'}`}
+                                className="text-xs h-8 bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs font-semibold"
                             >
                                 {updatingPhase ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
                                 {isCodeSubmissionOpen ? 'Lock Round 2' : 'Unlock Round 2'}
                             </Button>
-                            <Button variant="ghost" size="sm" className="text-neutral-400">
+                            <Button variant="ghost" size="sm" className="text-slate-400">
                                 {showRound2Panel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                             </Button>
                         </div>
@@ -1017,46 +998,46 @@ export default function AdminDashboard() {
                         <CardContent className="p-6 space-y-6">
                             {/* Notification */}
                             {round2Notification && (
-                                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 border ${round2Notification.type === 'success' ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-red-950/40 border-red-500/40 text-red-300'}`}>
-                                    {round2Notification.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />}
+                                <div className={`p-3 rounded-xl text-sm flex items-center gap-2 border ${round2Notification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`}>
+                                    {round2Notification.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" /> : <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />}
                                     <span>{round2Notification.message}</span>
                                 </div>
                             )}
 
                             {/* Round 2 Statistics Grid */}
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                <div className="bg-neutral-900/40 border border-neutral-800 p-3 rounded-xl">
-                                    <span className="text-[11px] text-neutral-400 font-medium block">Eligible Shortlisted</span>
+                                <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl">
+                                    <span className="text-[11px] text-slate-500 font-semibold block uppercase tracking-wider">Eligible Shortlisted</span>
                                     <div className="flex items-baseline gap-1 mt-1">
-                                        <span className="text-xl font-bold text-white">{stats.round2ShortlistedCount}</span>
-                                        <span className="text-[10px] text-emerald-400">Teams</span>
+                                        <span className="text-2xl font-black text-slate-900">{stats.round2ShortlistedCount}</span>
+                                        <span className="text-[11px] text-emerald-700 font-semibold">Teams</span>
                                     </div>
                                 </div>
-                                <div className="bg-neutral-900/40 border border-neutral-800 p-3 rounded-xl">
-                                    <span className="text-[11px] text-neutral-400 font-medium block">Repos Submitted</span>
+                                <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl">
+                                    <span className="text-[11px] text-slate-500 font-semibold block uppercase tracking-wider">Repos Submitted</span>
                                     <div className="flex items-baseline gap-1 mt-1">
-                                        <span className="text-xl font-bold text-indigo-400">{stats.round2SubmittedCount}</span>
-                                        <span className="text-[10px] text-neutral-500">/ {stats.round2ShortlistedCount}</span>
+                                        <span className="text-2xl font-black text-indigo-700">{stats.round2SubmittedCount}</span>
+                                        <span className="text-[11px] text-slate-400 font-medium">/ {stats.round2ShortlistedCount}</span>
                                     </div>
                                 </div>
-                                <div className="bg-neutral-900/40 border border-neutral-800 p-3 rounded-xl">
-                                    <span className="text-[11px] text-neutral-400 font-medium block">AI Evaluated</span>
+                                <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl">
+                                    <span className="text-[11px] text-slate-500 font-semibold block uppercase tracking-wider">AI Evaluated</span>
                                     <div className="flex items-baseline gap-1 mt-1">
-                                        <span className="text-xl font-bold text-emerald-400">{stats.round2EvaluatedCount}</span>
-                                        <span className="text-[10px] text-neutral-500">Codebases</span>
+                                        <span className="text-2xl font-black text-emerald-700">{stats.round2EvaluatedCount}</span>
+                                        <span className="text-[11px] text-slate-400 font-medium">Codebases</span>
                                     </div>
                                 </div>
-                                <div className="bg-neutral-900/40 border border-neutral-800 p-3 rounded-xl">
-                                    <span className="text-[11px] text-neutral-400 font-medium block">Pending Repo</span>
+                                <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl">
+                                    <span className="text-[11px] text-slate-500 font-semibold block uppercase tracking-wider">Pending Repo</span>
                                     <div className="flex items-baseline gap-1 mt-1">
-                                        <span className="text-xl font-bold text-amber-400">{stats.round2PendingCount}</span>
-                                        <span className="text-[10px] text-neutral-500">Awaiting</span>
+                                        <span className="text-2xl font-black text-amber-700">{stats.round2PendingCount}</span>
+                                        <span className="text-[11px] text-slate-400 font-medium">Awaiting</span>
                                     </div>
                                 </div>
-                                <div className="bg-neutral-900/40 border border-neutral-800 p-3 rounded-xl">
-                                    <span className="text-[11px] text-neutral-400 font-medium block">Failed / Retry</span>
+                                <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl">
+                                    <span className="text-[11px] text-slate-500 font-semibold block uppercase tracking-wider">Failed / Retry</span>
                                     <div className="flex items-baseline gap-1 mt-1">
-                                        <span className={`text-xl font-bold ${stats.round2FailedCount > 0 ? 'text-red-400' : 'text-neutral-400'}`}>
+                                        <span className={`text-2xl font-black ${stats.round2FailedCount > 0 ? 'text-rose-700' : 'text-slate-400'}`}>
                                             {stats.round2FailedCount}
                                         </span>
                                     </div>
@@ -1066,31 +1047,31 @@ export default function AdminDashboard() {
                     )}
                 </Card>
 
-                {/* --- PHASE 6: FINAL COMPOSITE EVALUATION & WINNER SELECTION CENTER --- */}
-                <Card className="border-amber-500/40 bg-neutral-950/70 backdrop-blur-md shadow-xl overflow-hidden">
+                {/* Final Composite Ranking & Winner Selection Engine */}
+                <Card className="border border-slate-200/80 bg-white shadow-xs rounded-2xl overflow-hidden">
                     <CardHeader
-                        className="py-4 border-b border-neutral-800/60 flex flex-row items-center justify-between cursor-pointer"
+                        className="py-4 px-6 border-b border-slate-100 flex flex-row items-center justify-between cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-colors"
                         onClick={() => setShowFinalPanel(!showFinalPanel)}
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                            <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
                                 <Crown className="w-4 h-4" />
                             </div>
                             <div>
-                                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                                <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                                     Final Composite Ranking & Winner Selection Engine
                                     {activeHackathon?.isFinalResultsPublished ? (
-                                        <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-semibold">
+                                        <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">
                                             ● Published ({activeHackathon.winnerCount || 3} Winners Announced)
                                         </Badge>
                                     ) : (
-                                        <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-semibold">
+                                        <Badge className="bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold">
                                             ○ Results Draft / Masked from Participants
                                         </Badge>
                                     )}
                                 </CardTitle>
-                                <CardDescription className="text-xs text-neutral-400">
-                                    Combine Round 1 Pitch Deck scores and Round 2 GitHub Technical scores with configurable weights, preview deterministic ties, and publish official winners.
+                                <CardDescription className="text-xs text-slate-500">
+                                    Configure 100% GitHub Technical evaluation weight, preview deterministic ties, and publish official winners.
                                 </CardDescription>
                             </div>
                         </div>
@@ -1104,7 +1085,7 @@ export default function AdminDashboard() {
                                         e.stopPropagation();
                                         handleUnpublishFinalResults();
                                     }}
-                                    className="text-xs h-7 border-amber-500/40 text-amber-300 hover:bg-amber-950/40"
+                                    className="text-xs h-8 bg-white border-amber-200 text-amber-800 hover:bg-amber-50 shadow-xs font-semibold"
                                 >
                                     {isUnpublishingFinal ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
                                     Unpublish Results
@@ -1117,13 +1098,13 @@ export default function AdminDashboard() {
                                         e.stopPropagation();
                                         setShowPublishModal(true);
                                     }}
-                                    className="text-xs h-7 bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-md shadow-amber-500/20"
+                                    className="text-xs h-8 bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-xs"
                                 >
                                     <Crown className="w-3.5 h-3.5 mr-1" />
                                     Publish Final Results
                                 </Button>
                             )}
-                            <Button variant="ghost" size="sm" className="text-neutral-400">
+                            <Button variant="ghost" size="sm" className="text-slate-400">
                                 {showFinalPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                             </Button>
                         </div>
@@ -1133,8 +1114,8 @@ export default function AdminDashboard() {
                         <CardContent className="p-6 space-y-6">
                             {/* Notification Banner */}
                             {finalRankingNotification && (
-                                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 border ${finalRankingNotification.type === 'success' ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-red-950/40 border-red-500/40 text-red-300'}`}>
-                                    {finalRankingNotification.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />}
+                                <div className={`p-3 rounded-xl text-sm flex items-center gap-2 border ${finalRankingNotification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`}>
+                                    {finalRankingNotification.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" /> : <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />}
                                     <span>{finalRankingNotification.message}</span>
                                 </div>
                             )}
@@ -1142,34 +1123,29 @@ export default function AdminDashboard() {
                             {/* Weight Configuration and Winner Selection Controls */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 {/* Left Column: Evaluation Weights */}
-                                <div className="space-y-4 bg-neutral-900/50 p-4 rounded-xl border border-neutral-800">
+                                <div className="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200/80">
                                     <div className="flex items-center justify-between">
-                                        <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
-                                            <Sliders className="w-3.5 h-3.5 text-amber-400" /> Repository Ranking Configuration
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                                            <Sliders className="w-3.5 h-3.5 text-amber-600" /> Repository Ranking Configuration
                                         </h4>
                                         <Badge
                                             variant="outline"
-                                            className="text-[10px] font-mono font-semibold border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                                            className="text-[10px] font-mono font-bold border-emerald-300 text-emerald-800 bg-emerald-50"
                                         >
-                                            ✓ 100% Repository Score
+                                            100% Repository Score
                                         </Badge>
                                     </div>
 
-                                    <div className="p-3 bg-neutral-950 rounded-lg border border-neutral-800 space-y-1.5 text-xs text-neutral-300">
-                                        <p className="font-semibold text-white flex items-center gap-1.5">
-                                            <ShieldCheck className="w-4 h-4 text-emerald-400" /> Pure Codebase Evaluation Ranking
+                                    <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1.5 text-xs text-slate-700 shadow-xs">
+                                        <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                                            <ShieldCheck className="w-4 h-4 text-emerald-600" /> Pure Codebase Evaluation Ranking
                                         </p>
-                                        <p className="text-neutral-400 leading-relaxed text-[11px]">
+                                        <p className="text-slate-500 leading-relaxed text-[11px]">
                                             Final rankings and winner determinations are computed server-side directly from Gemini&apos;s 100-point technical rubric (Code Quality 25, Implementation 25, Architecture 20, Testing 15, Docs &amp; Git 15).
                                         </p>
                                     </div>
 
-                                    {/* Formula Visualizer */}
-                                    <div className="bg-neutral-950/80 p-2.5 rounded-lg border border-neutral-800 text-xs font-mono text-neutral-300">
-                                        <span className="text-amber-400 font-bold">Scoring Basis:</span> Final Score = 100% GitHub Technical Audit Score
-                                    </div>
-
-                                    {/* Calculate Action Buttons */}
+                                    {/* Action Buttons */}
                                     <div className="flex items-center gap-2 pt-1">
                                         <Button
                                             type="button"
@@ -1177,9 +1153,9 @@ export default function AdminDashboard() {
                                             size="sm"
                                             disabled={isPreviewingFinal || isCalculatingFinal}
                                             onClick={handlePreviewFinalRankings}
-                                            className="text-xs h-8 border-neutral-700 text-white hover:bg-neutral-800"
+                                            className="text-xs h-8 bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs font-semibold"
                                         >
-                                            {isPreviewingFinal ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Eye className="w-3.5 h-3.5 mr-1.5" />}
+                                            {isPreviewingFinal ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Eye className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />}
                                             Preview Repository Rankings
                                         </Button>
                                         <Button
@@ -1187,79 +1163,65 @@ export default function AdminDashboard() {
                                             size="sm"
                                             disabled={isCalculatingFinal}
                                             onClick={handleCalculateFinalRankings}
-                                            className="text-xs h-8 bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-md shadow-amber-500/20"
+                                            className="text-xs h-8 bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-xs"
                                         >
                                             {isCalculatingFinal ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Crown className="w-3.5 h-3.5 mr-1.5" />}
-                                            Calculate &amp; Save Repository Rankings
+                                            Calculate &amp; Save Rankings
                                         </Button>
                                     </div>
                                 </div>
 
                                 {/* Right Column: Winner Selection & Official Publication */}
-                                <div className="space-y-4 bg-neutral-900/50 p-4 rounded-xl border border-neutral-800 flex flex-col justify-between">
+                                <div className="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between">
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
-                                                <Award className="w-3.5 h-3.5 text-amber-400" /> Podium & Winner Selection
+                                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                                                <Award className="w-3.5 h-3.5 text-amber-600" /> Podium &amp; Winner Selection
                                             </h4>
-                                            <span className="text-[11px] text-neutral-400">
-                                                Target Finalists: <strong className="text-white">{winnerCount}</strong>
+                                            <span className="text-[11px] text-slate-500 font-medium">
+                                                Target Finalists: <strong className="text-slate-900">{winnerCount}</strong>
                                             </span>
                                         </div>
 
                                         {/* Winner Count Selector */}
                                         <div className="space-y-2">
-                                            <label className="text-[11px] text-neutral-400 block">Number of Official Winners</label>
+                                            <label className="text-[11px] text-slate-600 font-semibold block">Number of Official Winners</label>
                                             <div className="flex flex-wrap items-center gap-2">
                                                 {[3, 5, 10].map((n) => (
                                                     <button
                                                         key={n}
                                                         type="button"
                                                         onClick={() => setWinnerCount(n)}
-                                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${winnerCount === n ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${winnerCount === n ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                                                     >
                                                         Top {n} {n === 3 ? '(Podium)' : 'Finalists'}
                                                     </button>
                                                 ))}
-                                                <div className="flex items-center gap-1.5 bg-neutral-950 px-2 py-1 rounded-lg border border-neutral-800">
-                                                    <span className="text-[11px] text-neutral-400">Custom:</span>
+                                                <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                                                    <span className="text-[11px] text-slate-500">Custom:</span>
                                                     <Input
                                                         type="number"
                                                         min={1}
                                                         max={50}
                                                         value={winnerCount}
                                                         onChange={(e) => setWinnerCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                                                        className="w-14 h-6 text-xs bg-neutral-900 border-neutral-700 text-white font-bold text-center"
+                                                        className="w-14 h-6 text-xs bg-slate-50 border-slate-200 text-slate-900 font-bold text-center"
                                                     />
                                                 </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-neutral-950/80 p-3 rounded-lg border border-neutral-800 text-xs text-neutral-400 space-y-1">
-                                            <span className="text-white font-semibold block">Winner Podiums:</span>
-                                            <div className="flex items-center gap-2 flex-wrap text-[11px] pt-1">
-                                                <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px]">🏆 1st: Gold</Badge>
-                                                <Badge className="bg-slate-400/20 text-slate-300 border border-slate-400/40 text-[10px]">🥈 2nd: Silver</Badge>
-                                                <Badge className="bg-amber-700/20 text-amber-500 border border-amber-700/40 text-[10px]">🥉 3rd: Bronze</Badge>
-                                                {winnerCount > 3 && (
-                                                    <Badge variant="outline" className="border-indigo-500/40 text-indigo-400 text-[10px]">
-                                                        🏅 4th - {winnerCount}th: Official Finalists
-                                                    </Badge>
-                                                )}
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Publication Status & Action */}
-                                    <div className="pt-3 border-t border-neutral-800 space-y-2">
+                                    <div className="pt-3 border-t border-slate-200 space-y-2">
                                         <div className="flex items-center justify-between text-xs">
-                                            <span className="text-neutral-400">Participant Visibility:</span>
+                                            <span className="text-slate-500">Participant Visibility:</span>
                                             {activeHackathon?.isFinalResultsPublished ? (
-                                                <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                                                <span className="text-emerald-700 font-bold flex items-center gap-1">
                                                     <CheckCircle2 className="w-3.5 h-3.5" /> Visible in Participant Dashboard
                                                 </span>
                                             ) : (
-                                                <span className="text-amber-400 font-semibold flex items-center gap-1">
+                                                <span className="text-amber-700 font-bold flex items-center gap-1">
                                                     <AlertTriangle className="w-3.5 h-3.5" /> Hidden from Participants (Draft Mode)
                                                 </span>
                                             )}
@@ -1273,7 +1235,7 @@ export default function AdminDashboard() {
                                                     size="sm"
                                                     disabled={isUnpublishingFinal}
                                                     onClick={handleUnpublishFinalResults}
-                                                    className="w-full text-xs h-8 border-amber-500/40 text-amber-300 hover:bg-amber-950/40"
+                                                    className="w-full text-xs h-8 bg-white border-amber-200 text-amber-800 hover:bg-amber-50 shadow-xs font-semibold"
                                                 >
                                                     {isUnpublishingFinal ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
                                                     Unpublish Results (Revert to Draft)
@@ -1284,10 +1246,10 @@ export default function AdminDashboard() {
                                                     size="sm"
                                                     disabled={isPublishingFinal}
                                                     onClick={() => setShowPublishModal(true)}
-                                                    className="w-full text-xs h-8 bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-md shadow-amber-500/20"
+                                                    className="w-full text-xs h-8 bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-xs"
                                                 >
                                                     <Crown className="w-3.5 h-3.5 mr-1.5" />
-                                                    Publish Final Results & Declare Top {winnerCount} Winners
+                                                    Publish Final Results &amp; Declare Top {winnerCount} Winners
                                                 </Button>
                                             )}
                                         </div>
@@ -1297,17 +1259,17 @@ export default function AdminDashboard() {
 
                             {/* Dry-Run Ranking Preview Drawer */}
                             {finalPreviewData && (
-                                <div className="p-4 rounded-xl bg-neutral-900/90 border border-amber-500/40 space-y-4 animate-in fade-in">
-                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+                                <div className="p-4 rounded-xl bg-slate-50 border border-amber-300 space-y-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
                                         <div className="flex items-center gap-3">
-                                            <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40">
+                                            <Badge className="bg-amber-100 text-amber-800 border-amber-300 font-bold">
                                                 Dry-Run Preview: {finalPreviewData.rankedCount} Teams Ranked
                                             </Badge>
-                                            <span className="text-xs text-neutral-400">
-                                                Weights: <strong className="text-white">{finalPreviewData.pitchWeight}% Pitch : {finalPreviewData.githubWeight}% Code</strong>
+                                            <span className="text-xs text-slate-600">
+                                                Weights: <strong className="text-slate-900">100% Code</strong>
                                             </span>
                                             {finalPreviewData.incompleteCount > 0 && (
-                                                <span className="text-xs text-amber-400">
+                                                <span className="text-xs text-amber-700 font-medium">
                                                     Incomplete: <strong>{finalPreviewData.incompleteCount} Teams Pending Code</strong>
                                                 </span>
                                             )}
@@ -1316,7 +1278,7 @@ export default function AdminDashboard() {
                                             size="sm"
                                             onClick={handleCalculateFinalRankings}
                                             disabled={isCalculatingFinal}
-                                            className="bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs h-7 shadow-md"
+                                            className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs h-7 shadow-xs"
                                         >
                                             {isCalculatingFinal ? 'Saving to Database...' : 'Save this Ranking in MongoDB'}
                                         </Button>
@@ -1328,29 +1290,29 @@ export default function AdminDashboard() {
                                             return (
                                                 <div
                                                     key={rt.teamId}
-                                                    className={`flex items-center justify-between p-2.5 rounded-lg border ${isTopPodium ? 'bg-amber-950/20 border-amber-500/40' : 'bg-neutral-950/70 border-neutral-800/80'}`}
+                                                    className={`flex items-center justify-between p-2.5 rounded-lg border ${isTopPodium ? 'bg-amber-50/70 border-amber-300' : 'bg-white border-slate-200 shadow-xs'}`}
                                                 >
                                                     <div className="flex items-center gap-2.5">
-                                                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full font-extrabold text-xs ${rt.finalRank === 1 ? 'bg-amber-500 text-black' : rt.finalRank === 2 ? 'bg-slate-300 text-black' : rt.finalRank === 3 ? 'bg-amber-700 text-white' : 'bg-neutral-800 text-neutral-300'}`}>
+                                                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full font-black text-xs ${rt.finalRank === 1 ? 'bg-amber-500 text-white' : rt.finalRank === 2 ? 'bg-slate-400 text-white' : rt.finalRank === 3 ? 'bg-amber-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
                                                             #{rt.finalRank}
                                                         </span>
-                                                        <span className="font-semibold text-white">{rt.teamName}</span>
-                                                        <Badge variant="outline" className="text-[10px] py-0 border-neutral-700 text-neutral-400">
+                                                        <span className="font-bold text-slate-900">{rt.teamName}</span>
+                                                        <Badge variant="outline" className="text-[10px] py-0 border-slate-200 text-slate-600 bg-white">
                                                             {rt.track}
                                                         </Badge>
-                                                        {rt.finalRank === 1 && <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px]">🏆 Champion</Badge>}
-                                                        {rt.finalRank === 2 && <Badge className="bg-slate-400/20 text-slate-300 border-slate-400/40 text-[10px]">🥈 2nd Place</Badge>}
-                                                        {rt.finalRank === 3 && <Badge className="bg-amber-700/20 text-amber-500 border-amber-700/40 text-[10px]">🥉 3rd Place</Badge>}
-                                                        {rt.finalRank > 3 && rt.finalRank <= winnerCount && <Badge className="bg-indigo-500/20 text-indigo-300 border-indigo-500/40 text-[10px]">🏅 Finalist</Badge>}
+                                                        {rt.finalRank === 1 && <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-bold">1st Champion</Badge>}
+                                                        {rt.finalRank === 2 && <Badge className="bg-slate-200 text-slate-800 border-slate-300 text-[10px] font-bold">2nd Place</Badge>}
+                                                        {rt.finalRank === 3 && <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px] font-bold">3rd Place</Badge>}
+                                                        {rt.finalRank > 3 && rt.finalRank <= winnerCount && <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-semibold">Finalist</Badge>}
                                                     </div>
 
                                                     <div className="flex items-center gap-3">
-                                                        <span className="text-[11px] text-neutral-400">
-                                                            Code Score: <strong className="text-white">{rt.githubScore}</strong>
+                                                        <span className="text-[11px] text-slate-600">
+                                                            Code Score: <strong className="text-slate-900">{rt.githubScore}</strong>
                                                         </span>
-                                                        <div className="bg-neutral-900 px-2 py-0.5 rounded border border-neutral-700">
-                                                            <span className="font-extrabold text-amber-300 text-xs">
-                                                                {rt.finalScore} <span className="text-[10px] font-normal text-neutral-400">/ 100</span>
+                                                        <div className="bg-white px-2 py-0.5 rounded border border-slate-200 shadow-xs">
+                                                            <span className="font-black text-amber-700 text-xs">
+                                                                {rt.finalScore} <span className="text-[10px] font-normal text-slate-400">/ 100</span>
                                                             </span>
                                                         </div>
                                                     </div>
@@ -1365,44 +1327,44 @@ export default function AdminDashboard() {
                 </Card>
 
                 {/* Filter & Search Bar */}
-                <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-neutral-900/40 p-3.5 rounded-xl border border-neutral-800/80 backdrop-blur-sm">
+                <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                         <div className="relative w-full sm:w-64">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <Input
                                 placeholder="Search team or problem..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9 bg-neutral-900/70 border-neutral-800 text-sm h-9 text-white placeholder:text-neutral-500"
+                                className="pl-9 bg-slate-50 border-slate-200 text-sm h-9 text-slate-900 placeholder:text-slate-400 rounded-xl"
                             />
                         </div>
 
                         {/* Repository Evaluation Filter Tabs */}
-                        <div className="flex items-center bg-neutral-950 p-1 rounded-lg border border-neutral-800">
+                        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
                             <button
                                 onClick={() => setShortlistStatusFilter('ALL')}
-                                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${shortlistStatusFilter === 'ALL' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${shortlistStatusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'}`}
                             >
                                 All Repos ({submissions.length})
                             </button>
                             <button
                                 onClick={() => setShortlistStatusFilter('EVALUATED')}
-                                className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${shortlistStatusFilter === 'EVALUATED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm' : 'text-neutral-400 hover:text-white'}`}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors ${shortlistStatusFilter === 'EVALUATED' ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
                             >
-                                <Github className="w-3.5 h-3.5 text-emerald-400" /> Evaluated ({stats.round2EvaluatedCount})
+                                <Github className="w-3.5 h-3.5 text-emerald-600" /> Evaluated ({stats.round2EvaluatedCount})
                             </button>
                             <button
                                 onClick={() => {
                                     setShortlistStatusFilter('FINAL_RANKING');
                                     setSortBy('FINAL_RANK');
                                 }}
-                                className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${shortlistStatusFilter === 'FINAL_RANKING' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm' : 'text-neutral-400 hover:text-white'}`}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors ${shortlistStatusFilter === 'FINAL_RANKING' ? 'bg-amber-50 text-amber-900 border border-amber-300 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
                             >
-                                <Crown className="w-3.5 h-3.5 text-amber-400" /> Leaderboard ({stats.finalRankedCount})
+                                <Crown className="w-3.5 h-3.5 text-amber-600" /> Leaderboard ({stats.finalRankedCount})
                             </button>
                             <button
                                 onClick={() => setShortlistStatusFilter('PENDING')}
-                                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${shortlistStatusFilter === 'PENDING' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${shortlistStatusFilter === 'PENDING' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'}`}
                             >
                                 Pending ({stats.round2PendingCount})
                             </button>
@@ -1410,13 +1372,13 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
-                        <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
                             <Filter className="w-3.5 h-3.5" /> Theme:
                         </div>
                         <select
                             value={selectedTrack}
                             onChange={(e) => setSelectedTrack(e.target.value)}
-                            className="h-9 px-3 text-xs bg-neutral-900/80 border border-neutral-800 rounded-lg text-white"
+                            className="h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         >
                             <option value="ALL">All Themes</option>
                             <option value="General">General</option>
@@ -1430,55 +1392,55 @@ export default function AdminDashboard() {
                         <select
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value as 'SCORE_DESC' | 'SCORE_ASC' | 'NEWEST' | 'FINAL_RANK')}
-                            className="h-9 px-3 text-xs bg-neutral-900/80 border border-neutral-800 rounded-lg text-white"
+                            className="h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         >
                             <option value="FINAL_RANK">Official Final Rank</option>
-                            <option value="SCORE_DESC">Round 1 Score (High to Low)</option>
-                            <option value="SCORE_ASC">Round 1 Score (Low to High)</option>
+                            <option value="SCORE_DESC">Technical Score (High to Low)</option>
+                            <option value="SCORE_ASC">Technical Score (Low to High)</option>
                             <option value="NEWEST">Newest First</option>
                         </select>
                     </div>
                 </div>
 
-                {/* Leaderboard Table */}
-                <Card className="border-primary/20 bg-background/60 backdrop-blur-md overflow-hidden">
-                    <CardHeader className="py-4 border-b border-neutral-800/60 flex flex-row items-center justify-between">
+                {/* Leaderboard Table Card */}
+                <Card className="border border-slate-200/80 bg-white shadow-xs rounded-2xl overflow-hidden">
+                    <CardHeader className="py-4 px-6 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50">
                         <div className="flex items-center gap-2">
-                            <CardTitle className="text-lg font-bold">
-                                {shortlistStatusFilter === 'FINAL_RANKING' ? '👑 Official Final Leaderboard' : shortlistStatusFilter === 'EVALUATED' ? '🛡️ Evaluated GitHub Repositories' : 'Ranked Repository Submissions'}
+                            <CardTitle className="text-base font-bold text-slate-900">
+                                {shortlistStatusFilter === 'FINAL_RANKING' ? 'Official Final Leaderboard' : shortlistStatusFilter === 'EVALUATED' ? 'Evaluated GitHub Repositories' : 'Ranked Repository Submissions'}
                             </CardTitle>
-                            <Badge variant="outline" className="text-xs font-medium text-neutral-400 border-neutral-800">
+                            <Badge variant="outline" className="text-xs font-semibold text-slate-500 border-slate-200 bg-white">
                                 Showing {filteredSubmissions.length} of {submissions.length} teams
                             </Badge>
                         </div>
                         {searchQuery && (
-                            <button onClick={() => setSearchQuery('')} className="text-xs text-primary hover:underline">
+                            <button onClick={() => setSearchQuery('')} className="text-xs text-indigo-600 hover:underline font-semibold">
                                 Clear Search Filter
                             </button>
                         )}
                     </CardHeader>
                     <CardContent className="p-0">
                         {loading ? (
-                            <div className="text-center py-16 text-neutral-400">
-                                <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+                            <div className="text-center py-16 text-slate-400">
+                                <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-600" />
                                 Loading leaderboard data...
                             </div>
                         ) : filteredSubmissions.length === 0 ? (
-                            <div className="text-center py-16 text-neutral-400">
+                            <div className="text-center py-16 text-slate-400">
                                 <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
                                 No submissions match your filter.
                             </div>
                         ) : (
                             <Table>
-                                <TableHeader className="bg-neutral-900/40">
-                                    <TableRow className="border-neutral-800">
-                                        <TableHead className="w-14 text-center">Rank</TableHead>
-                                        <TableHead>Team &amp; GitHub Repository</TableHead>
-                                        <TableHead className="hidden md:table-cell">Project &amp; Track</TableHead>
-                                        <TableHead>Evaluation Status</TableHead>
-                                        <TableHead className="text-center">Repository Score</TableHead>
-                                        <TableHead className="text-right">Ranked Score</TableHead>
-                                        <TableHead className="text-right">Action</TableHead>
+                                <TableHeader className="bg-slate-50/80">
+                                    <TableRow className="border-b border-slate-200">
+                                        <TableHead className="w-16 text-center text-xs font-bold text-slate-700">Rank</TableHead>
+                                        <TableHead className="text-xs font-bold text-slate-700">Team &amp; GitHub Repository</TableHead>
+                                        <TableHead className="hidden md:table-cell text-xs font-bold text-slate-700">Project &amp; Track</TableHead>
+                                        <TableHead className="text-xs font-bold text-slate-700">Evaluation Status</TableHead>
+                                        <TableHead className="text-center text-xs font-bold text-slate-700">Repository Score</TableHead>
+                                        <TableHead className="text-right text-xs font-bold text-slate-700">Ranked Score</TableHead>
+                                        <TableHead className="text-right text-xs font-bold text-slate-700">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1494,38 +1456,38 @@ export default function AdminDashboard() {
                                         const rankDisplay = finalRank ? `#${finalRank}` : isShortlisted && sub.team?.shortlistRank ? `#${sub.team.shortlistRank}` : idx + 1;
 
                                         return (
-                                            <TableRow key={sub._id?.toString()} className="border-neutral-800/60 hover:bg-neutral-900/30 transition-colors">
-                                                <TableCell className="text-center font-bold text-xs text-neutral-400">
+                                            <TableRow key={sub._id?.toString()} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
+                                                <TableCell className="text-center font-bold text-xs">
                                                     {winnerPosition === 1 ? (
-                                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-500 text-black text-xs font-black shadow-md shadow-amber-500/30">
-                                                            🏆 1
+                                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-500 text-white text-xs font-black shadow-xs">
+                                                            1
                                                         </span>
                                                     ) : winnerPosition === 2 ? (
-                                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-300 text-black text-xs font-black">
-                                                            🥈 2
+                                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-400 text-white text-xs font-black shadow-xs">
+                                                            2
                                                         </span>
                                                     ) : winnerPosition === 3 ? (
-                                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-700 text-white text-xs font-black">
-                                                            🥉 3
+                                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-700 text-white text-xs font-black shadow-xs">
+                                                            3
                                                         </span>
                                                     ) : isWinner ? (
-                                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-xs font-bold">
+                                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold">
                                                             #{finalRank}
                                                         </span>
                                                     ) : finalRank ? (
-                                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-neutral-800 text-neutral-300 text-xs font-bold">
+                                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
                                                             #{finalRank}
                                                         </span>
                                                     ) : (
-                                                        rankDisplay
+                                                        <span className="text-slate-500 font-semibold">{rankDisplay}</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="font-semibold text-white flex items-center gap-2">
+                                                    <div className="font-bold text-slate-900 flex items-center gap-2">
                                                         {blindJudgingEnabled ? `Team #${idx + 1} (Redacted)` : (sub.team?.name || 'Unknown Team')}
                                                         {sub.aiEvaluation?.plagiarismFlag && (
-                                                            <Badge variant="destructive" className="bg-amber-900/40 text-amber-300 text-[10px] px-1.5 py-0 border-amber-800">
-                                                                Cliche Flag
+                                                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                                                Flagged
                                                             </Badge>
                                                         )}
                                                     </div>
@@ -1534,24 +1496,24 @@ export default function AdminDashboard() {
                                                             href={repoUrl}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="text-xs text-indigo-400 hover:underline inline-flex items-center gap-1 font-mono mt-0.5"
+                                                            className="text-xs text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-1 font-mono mt-0.5"
                                                         >
-                                                            <Github className="w-3 h-3 text-neutral-400 shrink-0" />
+                                                            <Github className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                                             <span className="truncate max-w-[200px]">{repoUrl.replace(/^https?:\/\/github\.com\//, '')}</span>
-                                                            <ExternalLink className="w-2.5 h-2.5 text-neutral-500" />
+                                                            <ExternalLink className="w-2.5 h-2.5 text-slate-400" />
                                                         </a>
                                                     ) : (
-                                                        <span className="text-[11px] text-neutral-500 italic block mt-0.5">No repo submitted</span>
+                                                        <span className="text-[11px] text-slate-400 italic block mt-0.5">No repo submitted</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="hidden md:table-cell">
-                                                    <p className="text-xs text-primary font-medium truncate max-w-xs">{sub.team?.projectTitle || 'Untitled Project'}</p>
+                                                    <p className="text-xs text-slate-800 font-semibold truncate max-w-xs">{sub.team?.projectTitle || 'Untitled Project'}</p>
                                                     <div className="flex items-center gap-2 mt-0.5">
-                                                        <span className="text-xs text-neutral-400">
+                                                        <span className="text-xs text-slate-500 font-medium">
                                                             {sub.team?.track || 'General'} Track
                                                         </span>
                                                         {sub.hackathon?.name && (
-                                                            <span className="text-[10px] text-neutral-500 bg-neutral-900 px-1.5 py-0.5 rounded border border-neutral-800">
+                                                            <span className="text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                                                                 {sub.hackathon.name}
                                                             </span>
                                                         )}
@@ -1560,15 +1522,15 @@ export default function AdminDashboard() {
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1 items-start">
                                                         {isWinner ? (
-                                                            <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] px-2 py-0.5 whitespace-nowrap font-bold">
-                                                                {winnerPosition === 1 ? '🏆 1st Champion' : winnerPosition === 2 ? '🥈 2nd Place' : winnerPosition === 3 ? '🥉 3rd Place' : `🏅 Finalist #${finalRank}`}
+                                                            <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] px-2 py-0.5 whitespace-nowrap font-bold">
+                                                                {winnerPosition === 1 ? '1st Champion' : winnerPosition === 2 ? '2nd Place' : winnerPosition === 3 ? '3rd Place' : `Finalist #${finalRank}`}
                                                             </Badge>
                                                         ) : sub.githubEvaluation?.status === 'EVALUATED' ? (
-                                                            <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] px-2 py-0.5 whitespace-nowrap font-semibold">
                                                                 Evaluated
                                                             </Badge>
                                                         ) : sub.githubEvaluation?.status === 'ANALYZING' ? (
-                                                            <Badge className="bg-indigo-900/40 text-indigo-300 border border-indigo-800 text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                                            <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] px-2 py-0.5 whitespace-nowrap font-semibold">
                                                                 <Loader2 className="w-2.5 h-2.5 animate-spin mr-1" /> Analyzing
                                                             </Badge>
                                                         ) : sub.githubEvaluation?.status === 'FAILED' ? (
@@ -1576,12 +1538,12 @@ export default function AdminDashboard() {
                                                                 Evaluation Failed
                                                             </Badge>
                                                         ) : (
-                                                            <Badge variant="outline" className="text-neutral-500 border-neutral-800 text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                                            <Badge variant="outline" className="text-slate-500 border-slate-200 text-[10px] px-2 py-0.5 whitespace-nowrap">
                                                                 Pending Review
                                                             </Badge>
                                                         )}
                                                         {finalRank && (
-                                                            <span className="text-[9px] text-neutral-500">
+                                                            <span className="text-[10px] text-slate-400 font-medium">
                                                                 Rank #{finalRank}
                                                             </span>
                                                         )}
@@ -1590,22 +1552,22 @@ export default function AdminDashboard() {
                                                 <TableCell className="text-center">
                                                     {sub.githubEvaluation?.status === 'EVALUATED' ? (
                                                         <div className="flex items-center justify-center gap-1.5">
-                                                            <span className="font-extrabold text-sm text-emerald-400">
+                                                            <span className="font-black text-sm text-emerald-700">
                                                                 {codeScore ?? 0}
                                                             </span>
-                                                            <span className="text-[10px] text-neutral-500 font-normal">/100</span>
+                                                            <span className="text-[10px] text-slate-400 font-normal">/100</span>
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
                                                                 onClick={() => setSelectedCodeReport(sub)}
                                                                 title="View AI Code Audit Report"
-                                                                className="h-6 w-6 p-0 text-neutral-400 hover:text-white"
+                                                                className="h-6 w-6 p-0 text-slate-400 hover:text-slate-800"
                                                             >
-                                                                <Eye className="w-3.5 h-3.5 text-indigo-400" />
+                                                                <Eye className="w-3.5 h-3.5 text-indigo-600" />
                                                             </Button>
                                                         </div>
                                                     ) : sub.githubEvaluation?.status === 'ANALYZING' ? (
-                                                        <Badge className="bg-indigo-900/40 text-indigo-300 border border-indigo-800 text-[10px] px-1 py-0">
+                                                        <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] px-1 py-0 font-medium">
                                                             <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> Analyzing
                                                         </Badge>
                                                     ) : sub.githubEvaluation?.status === 'FAILED' ? (
@@ -1613,44 +1575,44 @@ export default function AdminDashboard() {
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() => sub.team?._id && handleRetryCodeAnalysis(sub.team._id.toString())}
-                                                            className="h-6 text-[10px] border-red-500/40 text-red-300 hover:bg-red-950/30 px-2"
+                                                            className="h-6 text-[10px] border-rose-200 text-rose-700 hover:bg-rose-50 px-2 font-bold"
                                                         >
                                                             Retry
                                                         </Button>
                                                     ) : (
-                                                        <span className="text-neutral-600 text-xs">—</span>
+                                                        <span className="text-slate-300 text-xs">—</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     {finalScore !== undefined ? (
                                                         <div className="flex flex-col items-end">
                                                             <div className="flex items-baseline gap-0.5">
-                                                                <span className="font-extrabold text-amber-300 text-lg">{finalScore}</span>
-                                                                <span className="text-[10px] text-neutral-500 font-normal">/100</span>
+                                                                <span className="font-black text-amber-700 text-lg">{finalScore}</span>
+                                                                <span className="text-[10px] text-slate-400 font-normal">/100</span>
                                                             </div>
                                                         </div>
                                                     ) : codeScore !== undefined ? (
                                                         <div className="flex flex-col items-end">
-                                                            <span className="font-bold text-sm text-emerald-400">{codeScore}</span>
-                                                            <span className="text-[9px] text-neutral-500 font-normal">Score Ready</span>
+                                                            <span className="font-black text-sm text-emerald-700">{codeScore}</span>
+                                                            <span className="text-[9px] text-slate-400 font-medium">Score Ready</span>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-neutral-500 text-xs">—</span>
+                                                        <span className="text-slate-300 text-xs">—</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <div className="flex items-center justify-end gap-1">
+                                                    <div className="flex items-center justify-end gap-1.5">
                                                         {sub.githubEvaluation?.status === 'EVALUATED' && (
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
                                                                 onClick={() => setSelectedCodeReport(sub)}
-                                                                className="h-7 text-xs text-indigo-400 hover:text-white hover:bg-indigo-950/40"
+                                                                className="h-7 text-xs text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50 font-semibold"
                                                             >
                                                                 <Github className="w-3.5 h-3.5 mr-1" /> Audit
                                                             </Button>
                                                         )}
-                                                        <Button asChild variant="outline" size="sm" className="h-7 text-xs border-neutral-800 hover:bg-neutral-800">
+                                                        <Button asChild variant="outline" size="sm" className="h-7 text-xs border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold shadow-xs">
                                                             <Link href={`/admin/submission/${sub._id}`}>
                                                                 Report <ExternalLink className="ml-1 h-3 w-3" />
                                                             </Link>
@@ -1668,20 +1630,20 @@ export default function AdminDashboard() {
 
                 {/* AI Code Report Modal Overlay */}
                 {selectedCodeReport && (
-                    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6">
-                            <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
+                    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-white border border-slate-200 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 md:p-8 space-y-6 text-slate-900">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs">
+                                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-semibold">
                                             Rank #{selectedCodeReport.team?.shortlistRank || '—'}
                                         </Badge>
-                                        <Badge variant="outline" className="border-indigo-500/40 text-indigo-400 text-xs">
+                                        <Badge variant="outline" className="border-indigo-200 text-indigo-700 bg-indigo-50 text-xs">
                                             {selectedCodeReport.team?.track || 'General'} Track
                                         </Badge>
                                     </div>
-                                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                                        <Github className="w-5 h-5 text-indigo-400" />
+                                    <h3 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+                                        <Github className="w-6 h-6 text-indigo-600" />
                                         {selectedCodeReport.team?.name}
                                     </h3>
                                     {selectedCodeReport.githubEvaluation?.repoUrl && (
@@ -1689,7 +1651,7 @@ export default function AdminDashboard() {
                                             href={selectedCodeReport.githubEvaluation.repoUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-xs text-indigo-400 hover:underline flex items-center gap-1 mt-0.5"
+                                            className="text-xs text-indigo-600 hover:underline flex items-center gap-1 font-mono mt-0.5"
                                         >
                                             {selectedCodeReport.githubEvaluation.repoUrl} <ExternalLink className="w-3 h-3" />
                                         </a>
@@ -1697,16 +1659,16 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <div className="text-right">
-                                        <span className="text-[10px] uppercase text-neutral-400 block font-semibold">Technical Score</span>
-                                        <span className="text-2xl font-extrabold text-emerald-400 block">
-                                            {selectedCodeReport.githubEvaluation?.technicalScore ?? '—'} <span className="text-xs text-neutral-500 font-normal">/ 100</span>
+                                        <span className="text-[10px] uppercase text-slate-500 block font-bold tracking-wider">Technical Score</span>
+                                        <span className="text-3xl font-black text-emerald-700 block">
+                                            {selectedCodeReport.githubEvaluation?.technicalScore ?? '—'} <span className="text-xs text-slate-400 font-normal">/ 100</span>
                                         </span>
                                     </div>
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => setSelectedCodeReport(null)}
-                                        className="text-neutral-400 hover:text-white"
+                                        className="text-slate-400 hover:text-slate-800"
                                     >
                                         <X className="w-5 h-5" />
                                     </Button>
@@ -1716,38 +1678,38 @@ export default function AdminDashboard() {
                             {/* Rubric Breakdown */}
                             {selectedCodeReport.githubEvaluation?.breakdown && (
                                 <div>
-                                    <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
+                                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                                         100-Point Technical Rubric Breakdown
                                     </h4>
-                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                        <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
-                                            <span className="text-[11px] text-neutral-400 block truncate" title="Code Quality & Maintainability">Code Quality</span>
-                                            <span className="font-bold text-white text-base block mt-0.5">
-                                                {selectedCodeReport.githubEvaluation.breakdown.codeQualityMaintainability ?? selectedCodeReport.githubEvaluation.breakdown.codeQuality} <span className="text-[10px] text-neutral-500">/25</span>
+                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-center">
+                                            <span className="text-[11px] text-slate-500 font-semibold block truncate" title="Code Quality & Maintainability">Code Quality</span>
+                                            <span className="font-black text-slate-900 text-lg block mt-0.5">
+                                                {selectedCodeReport.githubEvaluation.breakdown.codeQualityMaintainability ?? selectedCodeReport.githubEvaluation.breakdown.codeQuality} <span className="text-[10px] text-slate-400 font-normal">/25</span>
                                             </span>
                                         </div>
-                                        <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
-                                            <span className="text-[11px] text-neutral-400 block truncate" title="Technical Implementation">Implementation</span>
-                                            <span className="font-bold text-white text-base block mt-0.5">
-                                                {selectedCodeReport.githubEvaluation.breakdown.technicalImplementation} <span className="text-[10px] text-neutral-500">/25</span>
+                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-center">
+                                            <span className="text-[11px] text-slate-500 font-semibold block truncate" title="Technical Implementation">Implementation</span>
+                                            <span className="font-black text-slate-900 text-lg block mt-0.5">
+                                                {selectedCodeReport.githubEvaluation.breakdown.technicalImplementation} <span className="text-[10px] text-slate-400 font-normal">/25</span>
                                             </span>
                                         </div>
-                                        <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
-                                            <span className="text-[11px] text-neutral-400 block truncate" title="Architecture & Project Structure">Architecture</span>
-                                            <span className="font-bold text-white text-base block mt-0.5">
-                                                {selectedCodeReport.githubEvaluation.breakdown.architectureProjectStructure ?? selectedCodeReport.githubEvaluation.breakdown.architecture} <span className="text-[10px] text-neutral-500">/20</span>
+                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-center">
+                                            <span className="text-[11px] text-slate-500 font-semibold block truncate" title="Architecture & Project Structure">Architecture</span>
+                                            <span className="font-black text-slate-900 text-lg block mt-0.5">
+                                                {selectedCodeReport.githubEvaluation.breakdown.architectureProjectStructure ?? selectedCodeReport.githubEvaluation.breakdown.architecture} <span className="text-[10px] text-slate-400 font-normal">/20</span>
                                             </span>
                                         </div>
-                                        <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
-                                            <span className="text-[11px] text-neutral-400 block truncate" title="Testing & Error Handling">Testing & Errors</span>
-                                            <span className="font-bold text-white text-base block mt-0.5">
-                                                {selectedCodeReport.githubEvaluation.breakdown.testingErrorHandling ?? selectedCodeReport.githubEvaluation.breakdown.documentationAndTesting} <span className="text-[10px] text-neutral-500">/15</span>
+                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-center">
+                                            <span className="text-[11px] text-slate-500 font-semibold block truncate" title="Testing & Error Handling">Testing &amp; Errors</span>
+                                            <span className="font-black text-slate-900 text-lg block mt-0.5">
+                                                {selectedCodeReport.githubEvaluation.breakdown.testingErrorHandling ?? selectedCodeReport.githubEvaluation.breakdown.documentationAndTesting} <span className="text-[10px] text-slate-400 font-normal">/15</span>
                                             </span>
                                         </div>
-                                        <div className="bg-neutral-950/70 p-2.5 rounded-lg border border-neutral-800 text-center">
-                                            <span className="text-[11px] text-neutral-400 block truncate" title="Documentation & Development Practices">Docs & Git</span>
-                                            <span className="font-bold text-white text-base block mt-0.5">
-                                                {selectedCodeReport.githubEvaluation.breakdown.documentationDevPractices ?? selectedCodeReport.githubEvaluation.breakdown.developmentActivity} <span className="text-[10px] text-neutral-500">/15</span>
+                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-center">
+                                            <span className="text-[11px] text-slate-500 font-semibold block truncate" title="Documentation & Development Practices">Docs &amp; Git</span>
+                                            <span className="font-black text-slate-900 text-lg block mt-0.5">
+                                                {selectedCodeReport.githubEvaluation.breakdown.documentationDevPractices ?? selectedCodeReport.githubEvaluation.breakdown.developmentActivity} <span className="text-[10px] text-slate-400 font-normal">/15</span>
                                             </span>
                                         </div>
                                     </div>
@@ -1756,11 +1718,11 @@ export default function AdminDashboard() {
 
                             {/* Summary */}
                             {(selectedCodeReport.githubEvaluation?.technicalSummary || selectedCodeReport.githubEvaluation?.summary) && (
-                                <div className="bg-neutral-950/50 p-4 rounded-xl border border-neutral-800 space-y-1">
-                                    <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-1">
+                                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                                         Executive Technical Summary
                                     </h4>
-                                    <p className="text-xs text-neutral-300 leading-relaxed">
+                                    <p className="text-xs text-slate-600 leading-relaxed">
                                         {selectedCodeReport.githubEvaluation.technicalSummary || selectedCodeReport.githubEvaluation.summary}
                                     </p>
                                 </div>
@@ -1769,27 +1731,27 @@ export default function AdminDashboard() {
                             {/* Detailed Feedback Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                                 {(selectedCodeReport.githubEvaluation?.codeQualityObservations || selectedCodeReport.githubEvaluation?.codeQualityAssessment) && (
-                                    <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
-                                        <h5 className="font-bold text-indigo-400 uppercase text-[11px]">Code Quality & Hygiene</h5>
-                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.codeQualityObservations || selectedCodeReport.githubEvaluation.codeQualityAssessment}</p>
+                                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-1">
+                                        <h5 className="font-bold text-indigo-700 uppercase text-[11px]">Code Quality &amp; Hygiene</h5>
+                                        <p className="text-slate-600 leading-relaxed">{selectedCodeReport.githubEvaluation.codeQualityObservations || selectedCodeReport.githubEvaluation.codeQualityAssessment}</p>
                                     </div>
                                 )}
                                 {(selectedCodeReport.githubEvaluation?.architectureObservations || selectedCodeReport.githubEvaluation?.architectureAssessment) && (
-                                    <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
-                                        <h5 className="font-bold text-indigo-400 uppercase text-[11px]">System Architecture</h5>
-                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.architectureObservations || selectedCodeReport.githubEvaluation.architectureAssessment}</p>
+                                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-1">
+                                        <h5 className="font-bold text-indigo-700 uppercase text-[11px]">System Architecture</h5>
+                                        <p className="text-slate-600 leading-relaxed">{selectedCodeReport.githubEvaluation.architectureObservations || selectedCodeReport.githubEvaluation.architectureAssessment}</p>
                                     </div>
                                 )}
                                 {(selectedCodeReport.githubEvaluation?.testingObservations || selectedCodeReport.githubEvaluation?.testingAssessment) && (
-                                    <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
-                                        <h5 className="font-bold text-indigo-400 uppercase text-[11px]">Testing & Error Handling</h5>
-                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.testingObservations || selectedCodeReport.githubEvaluation.testingAssessment}</p>
+                                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-1">
+                                        <h5 className="font-bold text-indigo-700 uppercase text-[11px]">Testing &amp; Error Handling</h5>
+                                        <p className="text-slate-600 leading-relaxed">{selectedCodeReport.githubEvaluation.testingObservations || selectedCodeReport.githubEvaluation.testingAssessment}</p>
                                     </div>
                                 )}
                                 {selectedCodeReport.githubEvaluation?.securityObservations && (
-                                    <div className="bg-neutral-950/40 p-3 rounded-lg border border-neutral-800 space-y-1">
-                                        <h5 className="font-bold text-amber-400 uppercase text-[11px]">Security Observations</h5>
-                                        <p className="text-neutral-300 leading-relaxed">{selectedCodeReport.githubEvaluation.securityObservations}</p>
+                                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-1">
+                                        <h5 className="font-bold text-amber-700 uppercase text-[11px]">Security Observations</h5>
+                                        <p className="text-slate-600 leading-relaxed">{selectedCodeReport.githubEvaluation.securityObservations}</p>
                                     </div>
                                 )}
                             </div>
@@ -1797,81 +1759,34 @@ export default function AdminDashboard() {
                             {/* Strengths & Weaknesses */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {selectedCodeReport.githubEvaluation?.strengths && selectedCodeReport.githubEvaluation.strengths.length > 0 && (
-                                    <div className="bg-emerald-950/20 border border-emerald-500/20 p-3 rounded-lg space-y-1">
-                                        <h5 className="text-[11px] font-bold text-emerald-400 uppercase">Key Verified Strengths</h5>
-                                        <ul className="text-xs text-neutral-300 space-y-1">
+                                    <div className="bg-emerald-50/70 border border-emerald-200 p-3.5 rounded-xl space-y-1">
+                                        <h5 className="text-[11px] font-bold text-emerald-800 uppercase">Key Verified Strengths</h5>
+                                        <ul className="text-xs text-emerald-900 space-y-1">
                                             {selectedCodeReport.githubEvaluation.strengths.map((s, i) => (
-                                                <li key={i} className="flex items-start gap-1.5"><span className="text-emerald-400">•</span> {s}</li>
+                                                <li key={i} className="flex items-start gap-1.5"><span className="text-emerald-600 font-bold">•</span> {s}</li>
                                             ))}
                                         </ul>
                                     </div>
                                 )}
                                 {selectedCodeReport.githubEvaluation?.weaknesses && selectedCodeReport.githubEvaluation.weaknesses.length > 0 && (
-                                    <div className="bg-red-950/20 border border-red-500/20 p-3 rounded-lg space-y-1">
-                                        <h5 className="text-[11px] font-bold text-red-400 uppercase">Technical Weaknesses & Gaps</h5>
-                                        <ul className="text-xs text-neutral-300 space-y-1">
+                                    <div className="bg-rose-50/70 border border-rose-200 p-3.5 rounded-xl space-y-1">
+                                        <h5 className="text-[11px] font-bold text-rose-800 uppercase">Technical Weaknesses &amp; Gaps</h5>
+                                        <ul className="text-xs text-rose-900 space-y-1">
                                             {selectedCodeReport.githubEvaluation.weaknesses.map((w, i) => (
-                                                <li key={i} className="flex items-start gap-1.5"><span className="text-red-400">•</span> {w}</li>
+                                                <li key={i} className="flex items-start gap-1.5"><span className="text-rose-600 font-bold">•</span> {w}</li>
                                             ))}
                                         </ul>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Missing Components / Implementation Evidence */}
-                            {((selectedCodeReport.githubEvaluation?.missingImplementationEvidence && selectedCodeReport.githubEvaluation.missingImplementationEvidence.length > 0) ||
-                              (selectedCodeReport.githubEvaluation?.missingComponents && selectedCodeReport.githubEvaluation.missingComponents.length > 0)) && (
-                                <div className="bg-neutral-950/40 border border-neutral-800 p-3 rounded-lg space-y-1">
-                                    <h5 className="text-[11px] font-bold text-neutral-400 uppercase">Missing or Incomplete Implementation Evidence</h5>
-                                    <ul className="text-xs text-neutral-300 space-y-1">
-                                        {(selectedCodeReport.githubEvaluation.missingImplementationEvidence || selectedCodeReport.githubEvaluation.missingComponents || []).map((m, i) => (
-                                            <li key={i} className="flex items-start gap-1.5"><span className="text-amber-400">•</span> {m}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-
-                            {/* Improvement Recommendations */}
-                            {selectedCodeReport.githubEvaluation?.improvementRecommendations && selectedCodeReport.githubEvaluation.improvementRecommendations.length > 0 && (
-                                <div className="bg-indigo-950/20 border border-indigo-500/20 p-3 rounded-lg space-y-1">
-                                    <h5 className="text-[11px] font-bold text-indigo-400 uppercase">Actionable Recommendations</h5>
-                                    <ul className="text-xs text-neutral-300 space-y-1">
-                                        {selectedCodeReport.githubEvaluation.improvementRecommendations.map((r, i) => (
-                                            <li key={i} className="flex items-start gap-1.5"><span className="text-indigo-400">•</span> {r}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-
-                            {/* Inspected Files & Limitations */}
-                            {((selectedCodeReport.githubEvaluation?.filesInspected && selectedCodeReport.githubEvaluation.filesInspected.length > 0) ||
-                              (selectedCodeReport.githubEvaluation?.analysisLimitations && selectedCodeReport.githubEvaluation.analysisLimitations.length > 0)) && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-neutral-400 border-t border-neutral-800/80 pt-3">
-                                    {selectedCodeReport.githubEvaluation.filesInspected && selectedCodeReport.githubEvaluation.filesInspected.length > 0 && (
-                                        <div>
-                                            <span className="font-semibold text-neutral-300 block mb-1">Files Inspected:</span>
-                                            <p className="font-mono text-[11px] text-neutral-400 truncate">
-                                                {selectedCodeReport.githubEvaluation.filesInspected.join(', ')}
-                                            </p>
-                                        </div>
-                                    )}
-                                    {selectedCodeReport.githubEvaluation.analysisLimitations && selectedCodeReport.githubEvaluation.analysisLimitations.length > 0 && (
-                                        <div>
-                                            <span className="font-semibold text-neutral-300 block mb-1">Analysis Limitations:</span>
-                                            <p className="text-[11px] text-neutral-400">
-                                                {selectedCodeReport.githubEvaluation.analysisLimitations.join('; ')}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="flex justify-end gap-2 border-t border-neutral-800 pt-4">
+                            {/* Action Buttons */}
+                            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setSelectedCodeReport(null)}
-                                    className="border-neutral-800 text-neutral-300"
+                                    className="border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold"
                                 >
                                     Close
                                 </Button>
@@ -1884,7 +1799,7 @@ export default function AdminDashboard() {
                                                 handleRetryCodeAnalysis(selectedCodeReport.team._id.toString());
                                             }
                                         }}
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs"
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs"
                                     >
                                         {retryingTeamId === selectedCodeReport.team._id.toString() ? (
                                             <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Retrying...</>
@@ -1900,25 +1815,25 @@ export default function AdminDashboard() {
 
                 {/* Publish Official Final Results Confirmation Modal */}
                 {showPublishModal && (
-                    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                        <div className="bg-neutral-900 border border-amber-500/40 rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-5 animate-in fade-in">
-                            <div className="flex items-center gap-3 border-b border-neutral-800 pb-4">
-                                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full shadow-2xl p-6 md:p-8 space-y-5 animate-in fade-in text-slate-900">
+                            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
                                     <Crown className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-white">Publish Official Final Results</h3>
-                                    <p className="text-xs text-neutral-400">Declare official winners and unlock leaderboard.</p>
+                                    <h3 className="text-lg font-bold text-slate-900">Publish Official Final Results</h3>
+                                    <p className="text-xs text-slate-500">Declare official winners and unlock leaderboard.</p>
                                 </div>
                             </div>
 
-                            <div className="space-y-3 text-xs text-neutral-300">
+                            <div className="space-y-3 text-xs text-slate-600">
                                 <p>
-                                    You are about to declare the <strong className="text-amber-400">Top {winnerCount} Winners</strong> and publish the official final leaderboard for <strong className="text-white">{activeHackathon?.name || 'this hackathon'}</strong>.
+                                    You are about to declare the <strong className="text-amber-700">Top {winnerCount} Winners</strong> and publish the official final leaderboard for <strong className="text-slate-900">{activeHackathon?.name || 'this hackathon'}</strong>.
                                 </p>
-                                <div className="bg-neutral-950 p-3 rounded-lg border border-neutral-800 space-y-1">
-                                    <span className="font-semibold text-white block">Official Actions:</span>
-                                    <ul className="space-y-1 text-neutral-400 list-disc pl-4">
+                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                                    <span className="font-bold text-slate-900 block">Official Actions:</span>
+                                    <ul className="space-y-1 text-slate-600 list-disc pl-4">
                                         <li>The Top {winnerCount} ranked teams will be permanently assigned official winner podium badges.</li>
                                         <li>All participant dashboards will immediately display official final rank and podium status.</li>
                                         <li>Participant privacy masking will be turned off.</li>
@@ -1926,12 +1841,12 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
-                            <div className="flex justify-end gap-3 pt-2 border-t border-neutral-800">
+                            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setShowPublishModal(false)}
-                                    className="border-neutral-800 text-neutral-300"
+                                    className="border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold"
                                 >
                                     Cancel
                                 </Button>
@@ -1939,10 +1854,10 @@ export default function AdminDashboard() {
                                     size="sm"
                                     disabled={isPublishingFinal}
                                     onClick={handlePublishFinalResults}
-                                    className="bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs shadow-md shadow-amber-500/20"
+                                    className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs"
                                 >
                                     {isPublishingFinal ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Crown className="w-3.5 h-3.5 mr-1.5" />}
-                                    Confirm & Publish Results
+                                    Confirm &amp; Publish Results
                                 </Button>
                             </div>
                         </div>
@@ -1950,25 +1865,5 @@ export default function AdminDashboard() {
                 )}
             </div>
         </div>
-    );
-}
-
-function EyeIcon(props: React.SVGProps<SVGSVGElement>) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-            <circle cx="12" cy="12" r="3" />
-        </svg>
     );
 }
