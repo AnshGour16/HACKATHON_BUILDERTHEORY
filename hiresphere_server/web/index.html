@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HireSphere AI | Serverpod Cloud Backend</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      max-width: 640px;
+      width: 100%;
+      padding: 40px;
+      text-align: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+    .pulse {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+    }
+    h1 span { color: #059669; }
+    p.subtitle {
+      color: #64748b;
+      font-size: 15px;
+      margin-bottom: 30px;
+      line-height: 1.5;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 30px;
+      text-align: left;
+    }
+    .stat {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .stat-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #94a3b8;
+      letter-spacing: 0.05em;
+    }
+    .stat-val {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 4px;
+    }
+    .links {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .btn-primary {
+      background: #059669;
+      color: #ffffff;
+    }
+    .btn-primary:hover { background: #047857; }
+    .btn-secondary {
+      background: #ffffff;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+    .btn-secondary:hover { background: #f1f5f9; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">
+      <div class="pulse"></div>
+      Serverpod Cloud Live &amp; Healthy
+    </div>
+    <h1>HireSphere <span>AI</span></h1>
+    <p class="subtitle">Official Serverpod Cloud Backend Server running Dart 3.14 &amp; Serverpod 2.9 for the Builderbase Hackathon.</p>
+    
+    <div class="grid">
+      <div class="stat">
+        <div class="stat-label">Cloud Host</div>
+        <div class="stat-val">Serverpod Cloud (KEDA)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">API Health</div>
+        <div class="stat-val">200 OK (Active)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Dart Runtime</div>
+        <div class="stat-val">3.14.1 Stable</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Client App</div>
+        <div class="stat-val">Flutter Cross-Platform</div>
+      </div>
+    </div>
+
+    <div class="links">
+      <a href="https://hackathon-ats.vercel.app" class="btn btn-primary" target="_blank">
+        Launch Web Dashboard (Vercel) &rarr;
+      </a>
+      <a href="https://hiresphere-ai.api.serverpod.space" class="btn btn-secondary" target="_blank">
+        Inspect Serverpod API Endpoint &rarr;
+      </a>
+      <a href="https://github.com/AnshGour16/HACKATHON_BUILDERTHEORY" class="btn btn-secondary" target="_blank">
+        View GitHub Repository &rarr;
+      </a>
+    </div>
+  </div>
+</body>
+</html>
